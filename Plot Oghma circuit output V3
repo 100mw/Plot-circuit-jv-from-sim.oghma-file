@@ -18,6 +18,12 @@ files = Path(
   "/Users/arangolab/Library/Mobile Documents/com~apple~CloudDocs/Data for publication/Disorder paper/CircuitSims/20220815-2/circuit_v12-1_c6_30nm_d10 b2/"
 )
 
+# Windows:
+files = Path(
+  "C:/Users/aarango/Documents/circuit_v12-1_c60_40nm_d14_down"
+)
+
+
 netlist = files / "netlist/"
 
 
