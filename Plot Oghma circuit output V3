@@ -32,13 +32,10 @@ d = 0.3     # offset between voltage and energy
 factor = 1 # mystery factor between Oghma and analytical
 
 # Open raw data file
-data_raw = pd.read_csv(files / "jv.dat", sep="\t", skiprows= 28, header=None, skipfooter=1)
+data_raw = pd.read_csv(files / "fit_data0.inp", sep="\t", skiprows=1, header=None)
 print(data_raw)
 v_data = data_raw[data_raw.columns[0]].to_numpy()
 j_data = data_raw[data_raw.columns[1]].to_numpy()
-
-
-
 
 ''''
 Extract voltage drops across circuit elements
@@ -294,8 +291,8 @@ axs[1].set_yscale("log")
 fig.subplots_adjust(top=0.98, right=0.98, bottom=0.07, left=0.12, hspace=0) 		#adjust plot for room for sliders
 
 # Add raw data to plots
-axs[0].scatter(v_data, j_data, s=2, color='#4d96f9')
-axs[1].scatter(v_data, jv_slope, s=2, color='#4d96f9')
+axs[0].scatter(v_data, j_data, s=8, color='#4d96f9')
+axs[1].scatter(v_data, jv_slope, s=8, color='#4d96f9')
 
 # set axis limits
 axs[0].set_ylim(			
