@@ -15,13 +15,13 @@ import numpy as np
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 files = Path(
-  "/Users/arangolab/Library/Mobile Documents/com~apple~CloudDocs/Data for publication/Disorder paper/CircuitSims/20220815-2/circuit_v12-1_c6_30nm_d10 b2/"
+  "/Users/arangolab/Library/Mobile Documents/com~apple~CloudDocs/Data for publication/Disorder paper/CircuitSims/20220811-1/circuit_v12-1_c60_40nm_d14_down/"
 )
 
-# Windows:
-files = Path(
-  "C:/Users/aarango/Documents/circuit_v12-1_c60_40nm_d14_down"
-)
+## Windows:
+#files = Path(
+# "C:/Users/aarango/Documents/circuit_v12-1_c60_40nm_d14_down"
+#)
 
 
 netlist = files / "netlist/"
@@ -93,10 +93,10 @@ Ts_volt_drop = values['Ts'].to_numpy(dtype=float)
 #Ts_volt_drop[Ts_volt_drop  == 0] = np.nan
 Ip_volt_drop = values['Ip'].to_numpy(dtype=float)
 block_shunt_volt_drop = values['Bsh'].to_numpy(dtype=float)
-#block_shunt_volt_drop[block_shunt_volt_drop == 0] = np.nan
+block_shunt_volt_drop[block_shunt_volt_drop == 0] = np.nan
 Tsh_volt_drop = values['Tsh'].to_numpy(dtype=float)
 Rs_volt_drop = values['Rs'].to_numpy(dtype=float)
-#Rs_volt_drop[Rs_volt_drop  == 0] = np.nan
+Rs_volt_drop[Rs_volt_drop  == 0] = np.nan
 
 
 
@@ -181,6 +181,8 @@ circuit_parameters_index = ['Rs',
 
 circuit_parameters_table = pd.DataFrame(data = circuit_parameters,
                                         index = circuit_parameters_index)
+
+print(circuit_parameters_table)
 
 
 """
