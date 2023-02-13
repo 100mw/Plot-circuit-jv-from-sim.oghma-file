@@ -13,6 +13,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
+from scipy import interpolate                   
 import math
 
 # Type path to folder here (Mac/Windows/Unix compatible):
@@ -108,27 +109,66 @@ Fit voltage voltage drop data
 Vbi_guess = 0.5			
 diode_width_guess = 1
 
-# Define voltage drop function
-def Diode_func(x, Vbi, width):
-  return Vbi*(1-np.exp(-x/width))
+Vo_guess = 1.5
+Ip_width_guess = 0.2
+Ip_n_guess = 1
 
-# Fit
-fit_diode_params, pcov = curve_fit(Diode_func, 
+Vr_guess = 2			
+Rs_width_guess = 0.2
+Rs_n_guess = 1
+
+# Define Diode voltage drop function
+def Diode_func(x, Vbi_fit, diode_width):
+  return Vbi_fit*(1-np.exp(-x/diode_width))
+
+# Fit Diode voltage drop
+fit_diode_params, diode_pcov = curve_fit(Diode_func, 
                                     v, 
                                     Diode_volt_drop, 
                                     p0=[Vbi_guess, diode_width_guess], 
                                     method='lm'
 )
-perr_diode = np.sqrt(np.diag(pcov))		  #standard deviation of errors 
+perr_diode = np.sqrt(np.diag(diode_pcov))		  #standard deviation of errors 
 
+# Define Inj voltage drop function
+def Ip_func(x, Vo_fit, Ip_width, Ip_n):
+  return x-Ip_width*np.log(np.exp((x-Vo_fit)/Ip_n/Ip_width)+1)
+
+# Fit Inj voltage drop
+fit_Inj_params, Inj_pcov = curve_fit(Ip_func, 
+                                      v, 
+                                      Ip_volt_drop, 
+                                      p0=[ Vo_guess, 
+                                            Ip_width_guess,
+                                            Ip_n_guess], method='lm'
+)
+perr_Inj = np.sqrt(np.diag(Inj_pcov))		  		#standard deviation of errors 
+
+# Define Rs voltage drop function
+def VRs_func(x, Vr_fit, Rs_width, Rs_n):
+  return Rs_width*np.log(np.exp((x-Vr_fit)/Rs_n/Rs_width)+1)
+
+# Fit Rs voltage drop
+fit_Rs_params, Rs_pcov = curve_fit(VRs_func, 
+                              v, 
+                              Rs_volt_drop,
+                              p0=[Vr_guess, Rs_width_guess, Rs_n_guess], 
+                              method='lm'
+)
+perr_Rs = np.sqrt(np.diag(Rs_pcov))	
+
+fit_params = np.concatenate((fit_diode_params, fit_Inj_params, fit_Rs_params))
+perr = np.concatenate((perr_diode, perr_Inj, perr_Rs))
 
 # Create DataFrame
-fit_results = pd.DataFrame(index = ['Vbi', 'diode width'])
-fit_results['Value'] = fit_diode_params
-fit_results['Error'] = perr_diode
+fit_results = pd.DataFrame(index = ['Vbi', 'diode width', 'Vo', 'Ip_width', 'Ip_n', 'Vr', 'Rs_width', 'Rs_n'])
+fit_results['Value'] = fit_params
+#fit_results['Error'] = perr
 print(fit_results)
-  
-  
+
+Vbi_fit_result = fit_diode_params[0]
+Vo_fit_result = fit_Inj_params[0]
+Vr_fit_result = fit_Rs_params[0]
   
   
   
@@ -312,7 +352,7 @@ jv_slope = np.gradient(np.log10(j_data), np.log10(v_data), edge_order=2)
 Diode_slope = np.gradient(np.log10(Diode(Jo, n)), np.log10(v), edge_order=2)
 Tshunt_slope = np.gradient(np.log10(Tshunt(JoTsh, tsh, Vbi)), np.log10(v), edge_order=2)
 Inj_slope = np.gradient(np.log10(Inj_p(JoIp, ip, Vo)), np.log10(v), edge_order=2)
-
+Rseries_slope = np.gradient(np.log10(Rseries(Rs)), np.log10(v), edge_order=2)
 
 
 
@@ -359,6 +399,12 @@ axs[0].text(0.8, 0.05, model_version, transform=axs[0].transAxes)
 axs[0].text(0.02, 0.36, 
             circuit_parameters_table.to_string(),   
             transform=axs[0].transAxes, ha='left')
+          
+# Add table of votages to plot
+axs[1].text(0.02, -0.41, 
+            fit_results.to_string(),   
+            transform=axs[0].transAxes, ha='left')
+          
 
 # Add individual circuit elements to plot
 Rshunt_line, = axs[0].plot(v, 
@@ -417,6 +463,34 @@ axs[1].plot(v,
             linewidth=1.2, c='orange', label='Fit')
           
 
+          
+'''''
+Add voltage points to plot
+'''''
+
+# Interpolate
+fint_Jdark = interpolate.interp1d(v, Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
+fint_Jdark_slope = interpolate.interp1d(v, Jdark_slope(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
+
+# Plot points
+axs[0].plot(Vbi_fit_result, fint_Jdark(Vbi_fit_result), marker='+', markersize=10)
+axs[1].plot(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), marker='+', markersize=10)
+
+axs[0].plot(Vo_fit_result, fint_Jdark(Vo_fit_result), marker='+', markersize=10)
+axs[1].plot(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), marker='+', markersize=10)
+
+axs[0].plot(Vr_fit_result, fint_Jdark(Vr_fit_result), marker='+', markersize=10)
+axs[1].plot(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), marker='+', markersize=10)
+
+# Plot voltage text
+Vbi_text = axs[0].text(Vbi_fit_result, fint_Jdark(Vbi_fit_result), '$V_{bi}$', ha='right')
+Vbi_text = axs[1].text(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), '$V_{bi}$', ha='right')
+
+Vo_text = axs[0].text(Vo_fit_result, fint_Jdark(Vo_fit_result), '$V_{0}$', ha='right')
+Vo_text = axs[1].text(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), '$V_{0}$', ha='right')
+
+Vr_text = axs[0].text(Vr_fit_result, fint_Jdark(Vr_fit_result), '$V_{r}$', ha='right')
+Vr_text = axs[1].text(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), '$V_{r}$', ha='left')
 
 
 plt.show()
