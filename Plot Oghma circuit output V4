@@ -12,6 +12,8 @@ import pandas as pd
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.optimize import curve_fit
+import math
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 files = Path(
@@ -35,7 +37,6 @@ T = 300					          # temperature
 Vbi = 0.5
 Vo = 1.1
 d = 0.3     # offset between voltage and energy
-factor = 1 # mystery factor between Oghma and analytical
 
 # Open raw data file
 data_raw = pd.read_csv(files / "fit_data0.inp", sep="\t", skiprows=1, header=None)
@@ -99,6 +100,38 @@ Rs_volt_drop = values['Rs'].to_numpy(dtype=float)
 Rs_volt_drop[Rs_volt_drop  == 0] = np.nan
 
 
+
+'''''
+Fit voltage voltage drop data
+'''''
+
+Vbi_guess = 0.5			
+diode_width_guess = 1
+
+# Define voltage drop function
+def Diode_func(x, Vbi, width):
+  return Vbi*(1-np.exp(-x/width))
+
+# Fit
+fit_diode_params, pcov = curve_fit(Diode_func, 
+                                    v, 
+                                    Diode_volt_drop, 
+                                    p0=[Vbi_guess, diode_width_guess], 
+                                    method='lm'
+)
+perr_diode = np.sqrt(np.diag(pcov))		  #standard deviation of errors 
+
+
+# Create DataFrame
+fit_results = pd.DataFrame(index = ['Vbi', 'diode width'])
+fit_results['Value'] = fit_diode_params
+fit_results['Error'] = perr_diode
+print(fit_results)
+  
+  
+  
+  
+  
 
 '''
 Read circuit element parameters from sim.oghma 
@@ -203,38 +236,38 @@ def Rseries(Rs):
 def Diode(Jo, 
           n
         ):
-    return Jo*(np.exp(Diode_volt_drop/n/k/T)-1)*factor/A
+    return Jo*(np.exp(Diode_volt_drop/n/k/T)-1)/A
 
 # effect of blocking layer on ideal diode
 def block_Diode(JoBd, 
                 bd
               ):
-  return np.power(JoBd*block_diode_volt_drop/d, bd)*factor/A
+  return np.power(JoBd*block_diode_volt_drop/d, bd)/A
 
 
 #space charge transport (shunt)
 def Tshunt(JoTsh, 
             tsh, 
             Vbi):
-    return np.power(JoTsh*Tsh_volt_drop/(Vbi+d), tsh)*factor/A
+    return np.power(JoTsh*Tsh_volt_drop/(Vbi+d), tsh)/A
 
 #effect of blocking layer on transport (shunt)
 def block_Tshunt(JoBsh, 
                 bsh, 
                 Vbi):
-    return np.power(JoBsh*block_shunt_volt_drop/(Vbi+d), bsh)*factor/A
+    return np.power(JoBsh*block_shunt_volt_drop/(Vbi+d), bsh)/A
 
 #Injection from p-type electrode
 def Inj_p(JoIp, 
           ip, 
           Vo):
-    return np.power(JoIp*Ip_volt_drop/(Vo+d), ip)*factor/A
+    return np.power(JoIp*Ip_volt_drop/(Vo+d), ip)/A
 
 #space charge transport (series)
 def Tseries(JoTs, 
             ts, 
             Vo):
-    return np.power(JoTs*Ts_volt_drop/(Vo+d), ts)*factor/A
+    return np.power(JoTs*Ts_volt_drop/(Vo+d), ts)/A
 
             
 
@@ -248,13 +281,13 @@ def Jdark(Rsh,
           n, 
           JoTsh, 
           tsh, 
-          JoTs, 
-          ts, 
+          JoIp, 
+          ip, 
           Vbi, 
           Vo):
     return (Diode(Jo, n) 
                 + Tshunt(JoTsh, tsh, Vbi) 
-                + Tseries(JoTs, ts, Vo) 
+                + Inj_p(JoIp, ip, Vo) 
                 + Rshunt(Rsh)
                 )
             
@@ -263,11 +296,11 @@ def Jdark_slope(Rsh,
           n, 
           JoTsh, 
           tsh, 
-          JoTs, 
-          ts,  
+          JoIp,
+          ip,
           Vbi, 
           Vo):
-    return np.gradient(np.log10(Jdark(Rsh, Jo, n, JoTsh, tsh, JoTs, ts, Vbi, Vo)),    
+    return np.gradient(np.log10(Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo)),    
                         np.log10(v))
 
 
@@ -278,7 +311,11 @@ Find slopes
 jv_slope = np.gradient(np.log10(j_data), np.log10(v_data), edge_order=2)
 Diode_slope = np.gradient(np.log10(Diode(Jo, n)), np.log10(v), edge_order=2)
 Tshunt_slope = np.gradient(np.log10(Tshunt(JoTsh, tsh, Vbi)), np.log10(v), edge_order=2)
-Tserie_slope = np.gradient(np.log10(Tseries(JoTs, ts, Vo)), np.log10(v), edge_order=2)
+Inj_slope = np.gradient(np.log10(Inj_p(JoIp, ip, Vo)), np.log10(v), edge_order=2)
+
+
+
+
 
 
 """
@@ -350,7 +387,7 @@ axs[0].plot(v,
 # color='green', linewidth=0.8)
 
 axs[0].plot(v, 
-  Tseries(JoTs, ts, Vo), 
+  Inj_p(JoIp, ip, Vo), 
   color='white', linewidth=0.8)
 
 #axs[0].plot(v, 
@@ -366,18 +403,20 @@ axs[1].plot(v,
     color='white', linewidth=0.8)
   
 axs[1].plot(v, 
-      Tserie_slope, 
+      Inj_slope, 
       color='white', linewidth=0.8)  
 
 
 # Add sum of legs
 Jdark_line, = axs[0].plot(v, 
-                            Jdark(Rsh, Jo, n, JoTsh, tsh, JoTs, ts, Vbi, Vo),
+                            Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo),
                               linewidth=1.2, c='orange', label='Fit')
 
 axs[1].plot(v, 
-            Jdark_slope(Rsh, Jo, n, JoTsh, tsh, JoTs, ts, Vbi, Vo), 
+            Jdark_slope(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), 
             linewidth=1.2, c='orange', label='Fit')
+          
+
 
 
 plt.show()
