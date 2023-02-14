@@ -18,7 +18,7 @@ import math
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 files = Path(
-  "/Users/arangolab/Library/Mobile Documents/com~apple~CloudDocs/Data for publication/Disorder paper/CircuitSims/20220811-1/circuit_v12-1_c60_40nm_d14_down/"
+  "/Users/arangolab/Library/Mobile Documents/com~apple~CloudDocs/Data for publication/Disorder paper/CircuitSims/20180222-3/circuit_v13 bilayer C60 addV2/"
 )
 
 ## Windows:
@@ -82,7 +82,8 @@ values.rename(columns={
 	'segment4' :  'Tsh',
 	'segment5' :  'Ts',
 	'segment6' :  'Ip',
-	'segment7' :  'Rs'
+	'segment7' :  'Rs',
+  'segment8' :  'SC'
   }, inplace=True)
 
 print(values)
@@ -99,6 +100,7 @@ block_shunt_volt_drop[block_shunt_volt_drop == 0] = np.nan
 Tsh_volt_drop = values['Tsh'].to_numpy(dtype=float)
 Rs_volt_drop = values['Rs'].to_numpy(dtype=float)
 Rs_volt_drop[Rs_volt_drop  == 0] = np.nan
+SC_volt_drop = values['SC'].to_numpy(dtype=float)
 
 
 
@@ -106,8 +108,8 @@ Rs_volt_drop[Rs_volt_drop  == 0] = np.nan
 Fit voltage voltage drop data
 '''''
 
-Vbi_guess = 0.5			
-diode_width_guess = 1
+Vbi_guess = 0.5
+diode_width_guess = 0.5
 
 Vo_guess = 1.5
 Ip_width_guess = 0.2
@@ -178,7 +180,7 @@ Read circuit element parameters from sim.oghma
 '''
 
 # Create list of segments to search
-numbers = list(range(0,32))
+numbers = list(range(0,35))
 numbers_str = [str(numbers[i]) for i in range(len(numbers))]
 
 segment = []
@@ -216,11 +218,16 @@ for i in range(len(segments)):
       if circuit_diagram[segments[i]]['name'] == 'Injection':
         JoIp = circuit_diagram[segments[i]]['I0']
         ip = circuit_diagram[segments[i]]['c']
+      if circuit_diagram[segments[i]]['name'] == 'SC':
+        JoSC = circuit_diagram[segments[i]]['I0']
+        sc = circuit_diagram[segments[i]]['c']
       if circuit_diagram[segments[i]]['name'] == 'Rs':
         Rs = circuit_diagram[segments[i]]['R']
 myfile.close()
 
 circuit_parameters = [Rs,
+                      JoSC,
+                      sc,
                       JoTs,
                       ts,
                       JoIp,
@@ -237,6 +244,8 @@ circuit_parameters = [Rs,
 ]
 
 circuit_parameters_index = ['Rs',
+                            'JoSC',
+                            'sc',
                             'JoTs',
                             'ts',
                             'JoIp',
@@ -309,12 +318,21 @@ def Tseries(JoTs,
             Vo):
     return np.power(JoTs*Ts_volt_drop/(Vo+d), ts)/A
 
-            
+#space charge transport (series)
+def SC(JoSC, 
+            sc, 
+            Vo):
+    return np.power(JoSC*SC_volt_drop/(Vo+d), sc)/A
 
 
 """
-Complete circuit solution
+Analytical circuit solutions
 """
+
+def Rseries_fit(v,
+                Rs,
+                *fit_Rs_params):
+  return VRs_func(v, *fit_Rs_params)/Rs/A
 
 def Jdark(Rsh, 
           Jo, 
@@ -352,9 +370,9 @@ jv_slope = np.gradient(np.log10(j_data), np.log10(v_data), edge_order=2)
 Diode_slope = np.gradient(np.log10(Diode(Jo, n)), np.log10(v), edge_order=2)
 Tshunt_slope = np.gradient(np.log10(Tshunt(JoTsh, tsh, Vbi)), np.log10(v), edge_order=2)
 Inj_slope = np.gradient(np.log10(Inj_p(JoIp, ip, Vo)), np.log10(v), edge_order=2)
-Rseries_slope = np.gradient(np.log10(Rseries(Rs)), np.log10(v), edge_order=2)
-
-
+Tseries_slope = np.gradient(np.log10(Tseries(JoTs, ts, Vo)), np.log10(v), edge_order=2)
+SC_slope = np.gradient(np.log10(SC(JoSC, sc, Vo)), np.log10(v), edge_order=2)
+Rseries_fit_slope = np.gradient(np.log10(Rseries_fit(v, Rs, *fit_Rs_params)), np.log10(v), edge_order=2)
 
 
 
@@ -362,9 +380,10 @@ Rseries_slope = np.gradient(np.log10(Rseries(Rs)), np.log10(v), edge_order=2)
 Plotting
 """
 
-# Creat figure
+# Create figure
 plt.style.use('dark_background')							#black background
-fig, axs = plt.subplots(2, 1, sharex=True, figsize=(6,8))
+fig, axs = plt.subplots(2, 1, sharex=True, figsize=(6,8), clear=False)
+fig.canvas.manager.set_window_title(files.name) 
 
 # Create scatter plot
 axs[1].set_xlabel("Voltage [V]")
@@ -396,7 +415,7 @@ axs[0].text(0.8, 0.05, model_version, transform=axs[0].transAxes)
 
 
 # Add table of circuit parameters to plot
-axs[0].text(0.02, 0.36, 
+axs[0].text(0.02, 0.28, 
             circuit_parameters_table.to_string(),   
             transform=axs[0].transAxes, ha='left')
           
@@ -412,8 +431,8 @@ Rshunt_line, = axs[0].plot(v,
   color='gray', linewidth=1, linestyle='dotted')
 
 Rseries_line, = axs[0].plot(v,
-  Rseries(Rs), 
-  color='gray', linewidth=1, linestyle='dashed')	
+  Rseries_fit(v, Rs, *fit_Rs_params), 
+  color='gray', linewidth=1, linestyle='dashed')
 
 
 axs[0].plot(v, 
@@ -436,9 +455,15 @@ axs[0].plot(v,
   Inj_p(JoIp, ip, Vo), 
   color='white', linewidth=0.8)
 
-#axs[0].plot(v, 
-# Inj_p(JoIp, ip, Vo), 
-# color='green', linewidth=0.8)
+axs[0].plot(v, 
+ Tseries(JoTs, ts, Vo), 
+ color='gray', linewidth=0.8)
+  
+axs[0].plot(v, 
+ SC(JoSC, sc, Vo), 
+ color='gray', linewidth=0.8)
+  
+  
   
 axs[1].plot(v, 
     Diode_slope, 
@@ -451,6 +476,18 @@ axs[1].plot(v,
 axs[1].plot(v, 
       Inj_slope, 
       color='white', linewidth=0.8)  
+    
+axs[1].plot(v, 
+      Tseries_slope, 
+      color='gray', linewidth=0.8) 
+    
+axs[1].plot(v, 
+      SC_slope, 
+      color='gray', linewidth=0.8) 
+
+axs[1].plot(v, 
+      Rseries_fit_slope, 
+      color='gray', linewidth=0.8, linestyle='dashed') 
 
 
 # Add sum of legs
@@ -491,6 +528,41 @@ Vo_text = axs[1].text(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), '$V_{0}$',
 
 Vr_text = axs[0].text(Vr_fit_result, fint_Jdark(Vr_fit_result), '$V_{r}$', ha='right')
 Vr_text = axs[1].text(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), '$V_{r}$', ha='left')
+
+
+'''
+Plot voltage drops
+'''
+
+
+# Create scatter plot
+plt.style.use('dark_background')	
+fig2, ax = plt.subplots()
+fig2.canvas.manager.set_window_title('Voltage drops') 
+
+# Add DataFrame data to plot
+for x in range(1,9):
+  plt.plot(values[values.columns[0]].to_numpy(), values[values.columns[x]].to_numpy())
+
+# Add labels
+# last voltage value
+label_x = values[values.columns[0]].iat[-1] 
+y_offset = 0.06
+
+# label y values
+ax.text(label_x, values[values.columns[1]].iat[-1], values.columns[1]) 
+ax.text(label_x, values[values.columns[2]].iat[-1], values.columns[2]) 
+ax.text(label_x, values[values.columns[3]].iat[-1] - y_offset, values.columns[3]) 
+ax.text(label_x, values[values.columns[4]].iat[-1], values.columns[4]) 
+ax.text(label_x, values[values.columns[5]].iat[-1], values.columns[5]) 
+ax.text(label_x, values[values.columns[6]].iat[-1] - y_offset, values.columns[6]) 
+ax.text(label_x, values[values.columns[7]].iat[-1], values.columns[7]) 
+ax.text(label_x, values[values.columns[8]].iat[-1], values.columns[8]) 
+
+# Add fits to plot
+ax.plot(v, VRs_func(v, *fit_Rs_params), color='gray', linestyle='dashed')
+ax.plot(v, Ip_func(v, *fit_Inj_params), color='gray', linestyle='dashed')
+ax.plot(v, Diode_func(v, *fit_diode_params), color='gray', linestyle='dashed')
 
 
 plt.show()
