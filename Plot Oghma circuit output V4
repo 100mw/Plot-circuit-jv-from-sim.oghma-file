@@ -121,7 +121,8 @@ Rs_n_guess = 1
 
 # Define Diode voltage drop function
 def Diode_func(x, Vbi_fit, diode_width):
-  return Vbi_fit*(1-np.exp(-x/diode_width))
+#  return Vbi_fit*(1-np.exp(-x/diode_width))
+  return x-diode_width*np.log(np.exp((x-Vbi_fit)/diode_width)+1)
 
 # Fit Diode voltage drop
 fit_diode_params, diode_pcov = curve_fit(Diode_func, 
