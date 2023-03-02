@@ -42,13 +42,15 @@ Set plotting attributes
 black_background = False
 line_color = 'black'
 
-plot_slopes = True
-plot_voltage_curves = False
+plot_slopes = False
+plot_voltage_curves = True
 
 write_model_version = False
 write_parameter_values = False
 
-plot_voltage_points = False
+plot_Vbi_point = False
+plot_Vo_point = False
+plot_Vr_point = False
 
 plot_width = 4
 plot_height = 4
@@ -532,21 +534,21 @@ if show_circuit_legs > 0:
   if show_circuit_legs > 1:
     axs0.plot(v, 
       Diode(Jo, n), 
-      color=line_color, linewidth=0.8)
+      color=line_color, linewidth=1, linestyle='dashed')
     if show_circuit_legs > 2:
       axs0.plot(v, 
         Tshunt(JoTsh, tsh, Vbi), 
-        color=line_color, linewidth=0.8)
+        color=line_color, linewidth=1, linestyle=(0,(1,1)))
       if show_circuit_legs > 3:
         axs0.plot(v, 
           Inj_p(JoIp, ip, Vo), 
-          color=line_color, linewidth=0.8)
-        axs0.plot(v, 
-          Tseries(JoTs, ts, Vo), 
-          color=line_color, linewidth=0.8)
-        axs0.plot(v, 
-          SC(JoSC, sc, Vo), 
-          color=line_color, linewidth=0.8)
+          color=line_color, linewidth=1, linestyle='dashdot')
+#        axs0.plot(v, 
+#          Tseries(JoTs, ts, Vo), 
+#          color=line_color, linewidth=0.8, linestyle='dashdot')
+#        axs0.plot(v, 
+#          SC(JoSC, sc, Vo), 
+#          color=line_color, linewidth=0.8, linestyle='dashdot')
 
 
 #Rseries_line, = axs0.plot(v,
@@ -601,20 +603,26 @@ if plot_slopes == True:
 Add voltage points to plot
 '''''
 
-if plot_voltage_points == True:
+if (plot_Vbi_point == True or 
+    plot_Vo_point == True or
+    plot_Vr_point == True):
 
   # Interpolate
   fint_Jdark = interpolate.interp1d(v, Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
  
   # Plot points
-  axs0.plot(Vbi_fit_result, fint_Jdark(Vbi_fit_result), marker='+', markersize=10)
-  axs0.plot(Vo_fit_result, fint_Jdark(Vo_fit_result), marker='+', markersize=10)
-  axs0.plot(Vr_fit_result, fint_Jdark(Vr_fit_result), marker='+', markersize=10)
-
-  # Plot voltage text
-  Vbi_text = axs0.text(Vbi_fit_result, fint_Jdark(Vbi_fit_result), '$V_{bi}$', ha='right')
-  Vo_text = axs0.text(Vo_fit_result, fint_Jdark(Vo_fit_result), '$V_{0}$', ha='right')
-  Vr_text = axs0.text(Vr_fit_result, fint_Jdark(Vr_fit_result), '$V_{r}$', ha='right')
+  if plot_Vbi_point == True:
+    axs0.plot(Vbi_fit_result, fint_Jdark(Vbi_fit_result), marker='+', markersize=10)
+    Vbi_text = axs0.text(Vbi_fit_result*np.power(10,-0.01), 
+                          fint_Jdark(Vbi_fit_result)*np.power(10, plot_height/30), '$V_{bi}$', ha='right')
+  if plot_Vo_point == True:
+    axs0.plot(Vo_fit_result, fint_Jdark(Vo_fit_result), marker='+', markersize=10)
+    Vo_text = axs0.text(Vo_fit_result*np.power(10,-0.01), 
+                        fint_Jdark(Vo_fit_result)*np.power(10, plot_height/30), '$V_{0}$', ha='right')
+  if plot_Vr_point == True:
+    axs0.plot(Vr_fit_result, fint_Jdark(Vr_fit_result), marker='+', markersize=10)
+    Vr_text = axs0.text(Vr_fit_result*np.power(10,-0.01), 
+                        fint_Jdark(Vr_fit_result)*np.power(10, plot_height/30), '$V_{r}$', ha='right')
 
   if plot_slopes == True:
 
@@ -622,14 +630,20 @@ if plot_voltage_points == True:
     fint_Jdark_slope = interpolate.interp1d(v, Jdark_slope(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
 
     # Plot points
-    axs1.plot(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), marker='+', markersize=10)
-    axs1.plot(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), marker='+', markersize=10)
-    axs1.plot(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), marker='+', markersize=10)
+    if plot_Vbi_point == True:
+      axs1.plot(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), marker='+', markersize=10)
+      Vbi_text = axs1.text(Vbi_fit_result*np.power(10,-0.02), 
+                          fint_Jdark_slope(Vbi_fit_result)*np.power(10, 0.05), '$V_{bi}$', ha='right')
+    if plot_Vo_point == True:
+      axs1.plot(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), marker='+', markersize=10)
+      Vo_text = axs1.text(Vo_fit_result*np.power(10,0.02), 
+                          fint_Jdark_slope(Vo_fit_result)*np.power(10, 0.05), '$V_{0}$', ha='left')
+    if plot_Vr_point == True:
+      axs1.plot(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), marker='+', markersize=10)
+      Vr_text = axs1.text(Vr_fit_result*np.power(10,0.02), 
+                          fint_Jdark_slope(Vr_fit_result)*np.power(10, 0.05), '$V_{r}$', ha='left')
 
-    # Plot voltage text
-    Vbi_text = axs1.text(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), '$V_{bi}$', ha='right')
-    Vo_text = axs1.text(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), '$V_{0}$', ha='right')
-    Vr_text = axs1.text(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), '$V_{r}$', ha='left')
+   
 
 
 '''
@@ -639,7 +653,8 @@ Plot voltage drops
 if plot_voltage_curves == True:
 
   # Create scatter plot
-  plt.style.use('dark_background')	
+  if black_background == True:
+    plt.style.use('dark_background')							#black background
   fig2, ax = plt.subplots()
   fig2.canvas.manager.set_window_title('Voltage drops') 
 
@@ -664,8 +679,16 @@ if plot_voltage_curves == True:
 
   # Add fits to plot
   ax.plot(v, VRs_func(v, *fit_Rs_params), color=line_color, linestyle='dashed')
+  ax.plot(Vr_fit_result, VRs_func(Vr_fit_result, *fit_Rs_params), marker='+', markersize=10)
+  ax.text(Vr_fit_result-0.01, 
+           VRs_func(Vr_fit_result, *fit_Rs_params)+0.05, '$V_{r}$', ha='right')
   ax.plot(v, Ip_func(v, *fit_Inj_params), color=line_color, linestyle='dashed')
+  ax.plot(Vo_fit_result, Ip_func(Vo_fit_result, *fit_Inj_params), marker='+', markersize=10)
+  ax.text(Vo_fit_result-0.01, 
+           Ip_func(Vo_fit_result, *fit_Inj_params)+0.05, '$V_{0}$', ha='right')
   ax.plot(v, Diode_func(v, *fit_diode_params), color=line_color, linestyle='dashed')
-
+  ax.plot(Vbi_fit_result, Diode_func(Vbi_fit_result, *fit_diode_params), marker='+', markersize=10)
+  ax.text(Vbi_fit_result-0.01, 
+           Diode_func(Vbi_fit_result, *fit_diode_params)+0.05, '$V_{bi}$', ha='right')
 
 plt.show()
