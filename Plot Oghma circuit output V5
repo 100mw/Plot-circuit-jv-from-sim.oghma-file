@@ -39,12 +39,27 @@ T = 300					          # temperature
 Set plotting attributes
 '''
 
+black_background = False
+line_color = 'black'
 
+plot_slopes = True
+plot_voltage_curves = False
 
+write_model_version = False
+write_parameter_values = False
+
+plot_voltage_points = False
+
+plot_width = 4
+plot_height = 4
+
+show_circuit_legs = 4
+fill_under_curve = 0.1
 
 # Open raw data file
 data_raw = pd.read_csv(files / "fit_data0.inp", sep="\t", skiprows=1, header=None)
-#print(data_raw)
+data_raw = data_raw.loc[(data_raw!=0).any(axis=1)]
+print(data_raw)
 v_data = data_raw[data_raw.columns[0]].to_numpy()
 j_data = data_raw[data_raw.columns[1]].to_numpy()
 
@@ -354,20 +369,61 @@ def Rseries_fit(v,
                 *fit_Rs_params):
   return VRs_func(v, *fit_Rs_params)/Rs/A
 
-def Jdark(Rsh, 
-          Jo, 
-          n, 
-          JoTsh, 
-          tsh, 
-          JoIp, 
-          ip, 
-          Vbi, 
-          Vo):
-    return (Diode(Jo, n) 
-                + Tshunt(JoTsh, tsh, Vbi) 
-                + Inj_p(JoIp, ip, Vo) 
-                + Rshunt(Rsh)
-                )
+if show_circuit_legs == 4:
+  def Jdark(Rsh, 
+            Jo, 
+            n, 
+            JoTsh, 
+            tsh, 
+            JoIp, 
+            ip, 
+            Vbi, 
+            Vo):
+      return (Diode(Jo, n) 
+                  + Tshunt(JoTsh, tsh, Vbi) 
+                  + Inj_p(JoIp, ip, Vo) 
+                  + Rshunt(Rsh)
+                  )
+elif show_circuit_legs == 3:
+    def Jdark(Rsh, 
+            Jo, 
+            n, 
+            JoTsh, 
+            tsh, 
+            JoIp, 
+            ip, 
+            Vbi, 
+            Vo):
+      return (Diode(Jo, n) 
+                  + Tshunt(JoTsh, tsh, Vbi)  
+                  + Rshunt(Rsh)
+                  )
+elif show_circuit_legs == 2:
+    def Jdark(Rsh, 
+            Jo, 
+            n, 
+            JoTsh, 
+            tsh, 
+            JoIp, 
+            ip, 
+            Vbi, 
+            Vo):
+      return (Diode(Jo, n) 
+                  + Rshunt(Rsh)
+                  )
+elif show_circuit_legs == 1:
+    def Jdark(Rsh, 
+            Jo, 
+            n, 
+            JoTsh, 
+            tsh, 
+            JoIp, 
+            ip, 
+            Vbi, 
+            Vo):
+      return (Rshunt(Rsh)
+                  )
+
             
 def Jdark_slope(Rsh, 
           Jo, 
@@ -401,123 +457,143 @@ Plotting
 """
 
 # Create figure
-plt.style.use('dark_background')							#black background
-fig, axs = plt.subplots(2, 1, sharex=True, figsize=(6,8), clear=False)
+if black_background == True:
+  plt.style.use('dark_background')							#black background
+
+if plot_slopes == True:
+  fig, (axs0, axs1)   = plt.subplots(2, 1, sharex=True, figsize=(plot_width, plot_height), clear=False)
+else:
+  fig, axs0 = plt.subplots(1, 1, sharex=True, figsize=(plot_width, plot_height), clear=False)
+
 fig.canvas.manager.set_window_title(files.name) 
 
-# Create scatter plot
-axs[1].set_xlabel("Voltage [V]")
-axs[0].set_ylabel("Current density [A/m$^2$]")
-axs[1].set_ylabel("Slope of log-log j-v curve")
-axs[0].set_xscale("log")
-axs[0].set_yscale("log")
-axs[1].set_yscale("log")
-fig.subplots_adjust(top=0.98, right=0.98, bottom=0.07, left=0.12, hspace=0) 		#adjust plot for room for sliders
+# Set up iv plot
+axs0.set_ylabel("Current density [A/m$^2$]")
+axs0.set_xscale("log")
+axs0.set_yscale("log")
 
-# Add raw data to plots
-axs[0].scatter(v_data, j_data, s=8, color='#4d96f9')
-axs[1].scatter(v_data, jv_slope, s=8, color='#4d96f9')
+#adjust plot margins
+#fig.subplots_adjust(top=0.98, right=0.98, bottom=0.07, left=0.12, hspace=0)
+plt.tight_layout()
+
+if plot_slopes == False:
+  axs0.set_xlabel("Voltage [V]")  
+  
+
+# Add raw data to iv plot
+axs0.scatter(v_data, j_data, s=8, color='#4d96f9')
 
 # set axis limits
-axs[0].set_ylim(			
+axs0.set_ylim(			
                 j_data.min()*0.1,			# grab min from data
                 j_data.max()*2				# grab max from data
 )
-# set axis limits
-axs[1].set_ylim(			
-                1,			            
-                3*np.nanmax(jv_slope)			# grab max
-)
 
-#text box for model version
-axs[0].text(0.8, 0.05, model_version, transform=axs[0].transAxes)		
+if write_model_version == True:
+  #text box for model version
+  axs0.text(0.8, 0.05, model_version, transform=axs0.transAxes)		
 
+if write_parameter_values == True:
+  # Add table of circuit parameters to plot
+  axs0.text(0.02, 0.28, 
+              circuit_parameters_table.to_string(),   
+              transform=axs0.transAxes, ha='left')
 
+# Prepare slope plot
+if plot_slopes == True:
 
-# Add table of circuit parameters to plot
-axs[0].text(0.02, 0.28, 
-            circuit_parameters_table.to_string(),   
-            transform=axs[0].transAxes, ha='left')
+  # Set up slope plot
+  axs1.set_xlabel("Voltage [V]")
+  axs1.set_ylabel("Slope of log-log j-v curve")
+  axs1.set_yscale("log")
+
+  # Add data to slope plot
+  axs1.scatter(v_data, jv_slope, s=8, color='#4d96f9')
+
+  # set axis limits
+  axs1.set_ylim(			
+                  1,			            
+                  3*np.nanmax(jv_slope)			# grab max
+  )
+
+  if write_parameter_values == True:            
+    # Add table of votages to plot
+    axs1.text(0.02, -0.41, 
+                fit_results.to_string(),   
+                transform=axs0.transAxes, ha='left')
           
-# Add table of votages to plot
-axs[1].text(0.02, -0.41, 
-            fit_results.to_string(),   
-            transform=axs[0].transAxes, ha='left')
-          
 
-# Add individual circuit elements to plot
-Rshunt_line, = axs[0].plot(v, 
-  Rshunt(Rsh), 
-  color='gray', linewidth=1, linestyle='dotted')
+# Add individual circuit elements to iv plot
 
-Rseries_line, = axs[0].plot(v,
-  Rseries_fit(v, Rs, *fit_Rs_params), 
-  color='gray', linewidth=1, linestyle='dashed')
+if show_circuit_legs > 0:
+  Rshunt_line, = axs0.plot(v, 
+    Rshunt(Rsh), 
+    color=line_color, linewidth=1, linestyle='dotted')
+  if show_circuit_legs > 1:
+    axs0.plot(v, 
+      Diode(Jo, n), 
+      color=line_color, linewidth=0.8)
+    if show_circuit_legs > 2:
+      axs0.plot(v, 
+        Tshunt(JoTsh, tsh, Vbi), 
+        color=line_color, linewidth=0.8)
+      if show_circuit_legs > 3:
+        axs0.plot(v, 
+          Inj_p(JoIp, ip, Vo), 
+          color=line_color, linewidth=0.8)
+        axs0.plot(v, 
+          Tseries(JoTs, ts, Vo), 
+          color=line_color, linewidth=0.8)
+        axs0.plot(v, 
+          SC(JoSC, sc, Vo), 
+          color=line_color, linewidth=0.8)
 
 
-axs[0].plot(v, 
-  Diode(Jo, n), 
-  color='white', linewidth=0.8)
-
-#axs[0].plot(v, 
-# block_Diode(JoBd, bd), 
-# color='green', linewidth=0.8)
-
-axs[0].plot(v, 
-  Tshunt(JoTsh, tsh, Vbi), 
-  color='white', linewidth=0.8)
-
-#axs[0].plot(v, 
-# block_Tshunt(JoBsh, bsh, Vbi), 
-# color='green', linewidth=0.8)
-
-axs[0].plot(v, 
-  Inj_p(JoIp, ip, Vo), 
-  color='white', linewidth=0.8)
-
-axs[0].plot(v, 
- Tseries(JoTs, ts, Vo), 
- color='gray', linewidth=0.8)
-  
-axs[0].plot(v, 
- SC(JoSC, sc, Vo), 
- color='gray', linewidth=0.8)
-  
-  
-  
-axs[1].plot(v, 
-    Diode_slope, 
-    color='white', linewidth=0.8)
-  
-axs[1].plot(v, 
-    Tshunt_slope, 
-    color='white', linewidth=0.8)
-  
-axs[1].plot(v, 
-      Inj_slope, 
-      color='white', linewidth=0.8)  
-    
-axs[1].plot(v, 
-      Tseries_slope, 
-      color='gray', linewidth=0.8) 
-    
-axs[1].plot(v, 
-      SC_slope, 
-      color='gray', linewidth=0.8) 
-
-axs[1].plot(v, 
-      Rseries_fit_slope, 
-      color='gray', linewidth=0.8, linestyle='dashed') 
+#Rseries_line, = axs0.plot(v,
+#  Rseries_fit(v, Rs, *fit_Rs_params), 
+#  color=line_color, linewidth=1, linestyle='dashed')
 
 
 # Add sum of legs
-Jdark_line, = axs[0].plot(v, 
+Jdark_line, = axs0.plot(v, 
                             Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo),
                               linewidth=1.2, c='orange', label='Fit')
+axs0.fill_between(v, 
+                  j_data.min()*0.1, 
+                  Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo),  
+                  color='orange', 
+                  alpha = fill_under_curve)                        
 
-axs[1].plot(v, 
-            Jdark_slope(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), 
-            linewidth=1.2, c='orange', label='Fit')
+# Add individual circuit elements to slope plot
+if plot_slopes == True:
+  
+  axs1.plot(v, 
+      Diode_slope, 
+      color=line_color, linewidth=0.8)
+    
+  axs1.plot(v, 
+      Tshunt_slope, 
+      color=line_color, linewidth=0.8)
+    
+  axs1.plot(v, 
+        Inj_slope, 
+        color=line_color, linewidth=0.8)  
+      
+  axs1.plot(v, 
+        Tseries_slope, 
+        color=line_color, linewidth=0.8) 
+      
+  axs1.plot(v, 
+        SC_slope, 
+        color=line_color, linewidth=0.8) 
+
+  axs1.plot(v, 
+        Rseries_fit_slope, 
+        color=line_color, linewidth=0.8, linestyle='dashed') 
+
+  axs1.plot(v, 
+              Jdark_slope(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), 
+              linewidth=1.2, c='orange', label='Fit')
           
 
           
@@ -525,64 +601,71 @@ axs[1].plot(v,
 Add voltage points to plot
 '''''
 
-# Interpolate
-fint_Jdark = interpolate.interp1d(v, Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
-fint_Jdark_slope = interpolate.interp1d(v, Jdark_slope(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
+if plot_voltage_points == True:
 
-# Plot points
-axs[0].plot(Vbi_fit_result, fint_Jdark(Vbi_fit_result), marker='+', markersize=10)
-axs[1].plot(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), marker='+', markersize=10)
+  # Interpolate
+  fint_Jdark = interpolate.interp1d(v, Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
+ 
+  # Plot points
+  axs0.plot(Vbi_fit_result, fint_Jdark(Vbi_fit_result), marker='+', markersize=10)
+  axs0.plot(Vo_fit_result, fint_Jdark(Vo_fit_result), marker='+', markersize=10)
+  axs0.plot(Vr_fit_result, fint_Jdark(Vr_fit_result), marker='+', markersize=10)
 
-axs[0].plot(Vo_fit_result, fint_Jdark(Vo_fit_result), marker='+', markersize=10)
-axs[1].plot(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), marker='+', markersize=10)
+  # Plot voltage text
+  Vbi_text = axs0.text(Vbi_fit_result, fint_Jdark(Vbi_fit_result), '$V_{bi}$', ha='right')
+  Vo_text = axs0.text(Vo_fit_result, fint_Jdark(Vo_fit_result), '$V_{0}$', ha='right')
+  Vr_text = axs0.text(Vr_fit_result, fint_Jdark(Vr_fit_result), '$V_{r}$', ha='right')
 
-axs[0].plot(Vr_fit_result, fint_Jdark(Vr_fit_result), marker='+', markersize=10)
-axs[1].plot(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), marker='+', markersize=10)
+  if plot_slopes == True:
 
-# Plot voltage text
-Vbi_text = axs[0].text(Vbi_fit_result, fint_Jdark(Vbi_fit_result), '$V_{bi}$', ha='right')
-Vbi_text = axs[1].text(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), '$V_{bi}$', ha='right')
+    # Interpolate
+    fint_Jdark_slope = interpolate.interp1d(v, Jdark_slope(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
 
-Vo_text = axs[0].text(Vo_fit_result, fint_Jdark(Vo_fit_result), '$V_{0}$', ha='right')
-Vo_text = axs[1].text(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), '$V_{0}$', ha='right')
+    # Plot points
+    axs1.plot(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), marker='+', markersize=10)
+    axs1.plot(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), marker='+', markersize=10)
+    axs1.plot(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), marker='+', markersize=10)
 
-Vr_text = axs[0].text(Vr_fit_result, fint_Jdark(Vr_fit_result), '$V_{r}$', ha='right')
-Vr_text = axs[1].text(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), '$V_{r}$', ha='left')
+    # Plot voltage text
+    Vbi_text = axs1.text(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), '$V_{bi}$', ha='right')
+    Vo_text = axs1.text(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), '$V_{0}$', ha='right')
+    Vr_text = axs1.text(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), '$V_{r}$', ha='left')
 
 
 '''
 Plot voltage drops
 '''
 
+if plot_voltage_curves == True:
 
-# Create scatter plot
-plt.style.use('dark_background')	
-fig2, ax = plt.subplots()
-fig2.canvas.manager.set_window_title('Voltage drops') 
+  # Create scatter plot
+  plt.style.use('dark_background')	
+  fig2, ax = plt.subplots()
+  fig2.canvas.manager.set_window_title('Voltage drops') 
 
-# Add DataFrame data to plot
-for x in range(1,9):
-  plt.plot(values[values.columns[0]].to_numpy(), values[values.columns[x]].to_numpy())
+  # Add DataFrame data to plot
+  for x in range(1,9):
+    plt.plot(values[values.columns[0]].to_numpy(), values[values.columns[x]].to_numpy())
 
-# Add labels
-# last voltage value
-label_x = values[values.columns[0]].iat[-1] 
-y_offset = 0.06
+  # Add labels
+  # last voltage value
+  label_x = values[values.columns[0]].iat[-1] 
+  y_offset = 0.06
 
-# label y values
-ax.text(label_x, values[values.columns[1]].iat[-1], values.columns[1]) 
-ax.text(label_x, values[values.columns[2]].iat[-1], values.columns[2]) 
-ax.text(label_x, values[values.columns[3]].iat[-1] - y_offset, values.columns[3]) 
-ax.text(label_x, values[values.columns[4]].iat[-1], values.columns[4]) 
-ax.text(label_x, values[values.columns[5]].iat[-1], values.columns[5]) 
-ax.text(label_x, values[values.columns[6]].iat[-1] - y_offset, values.columns[6]) 
-ax.text(label_x, values[values.columns[7]].iat[-1], values.columns[7]) 
-ax.text(label_x, values[values.columns[8]].iat[-1], values.columns[8]) 
+  # label y values
+  ax.text(label_x, values[values.columns[1]].iat[-1], values.columns[1]) 
+  ax.text(label_x, values[values.columns[2]].iat[-1], values.columns[2]) 
+  ax.text(label_x, values[values.columns[3]].iat[-1] - y_offset, values.columns[3]) 
+  ax.text(label_x, values[values.columns[4]].iat[-1], values.columns[4]) 
+  ax.text(label_x, values[values.columns[5]].iat[-1], values.columns[5]) 
+  ax.text(label_x, values[values.columns[6]].iat[-1] - y_offset, values.columns[6]) 
+  ax.text(label_x, values[values.columns[7]].iat[-1], values.columns[7]) 
+  ax.text(label_x, values[values.columns[8]].iat[-1], values.columns[8]) 
 
-# Add fits to plot
-ax.plot(v, VRs_func(v, *fit_Rs_params), color='gray', linestyle='dashed')
-ax.plot(v, Ip_func(v, *fit_Inj_params), color='gray', linestyle='dashed')
-ax.plot(v, Diode_func(v, *fit_diode_params), color='gray', linestyle='dashed')
+  # Add fits to plot
+  ax.plot(v, VRs_func(v, *fit_Rs_params), color=line_color, linestyle='dashed')
+  ax.plot(v, Ip_func(v, *fit_Inj_params), color=line_color, linestyle='dashed')
+  ax.plot(v, Diode_func(v, *fit_diode_params), color=line_color, linestyle='dashed')
 
 
 plt.show()
