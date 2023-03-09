@@ -19,7 +19,7 @@ import math
 # Type path to folder here (Mac/Windows/Unix compatible):
 
 files = Path(
-  "/Users/arangolab/Library/Mobile Documents/com~apple~CloudDocs/Data for publication/Disorder paper/CircuitSims/20180222-3/circuit_v13 bilayer C60 addV2/"
+  "/Users/arangolab/Library/Mobile Documents/com~apple~CloudDocs/Data for publication/Disorder paper/CircuitSims/20220811-1/circuit_v13-1_c60_40nm_d14_down"
 )
 
 ## Windows:
@@ -44,18 +44,19 @@ line_color = 'white'
 
 plot_slopes = False
 plot_voltage_curves = False
+plot_effective_voltage = True
 
 write_model_version = False
-write_parameter_values = False
+write_parameter_values = True
 
 plot_Vbi_point = False
 plot_Vo_point = False
 plot_Vr_point = False
 
-plot_width = 4
-plot_height = 4
+plot_width = 5
+plot_height = 6 
 
-show_circuit_legs = 4  
+show_circuit_legs = 5  
 fill_under_curve = 0.2
 
 # Open raw data file
@@ -115,7 +116,7 @@ Diode_volt_drop = values['D'].to_numpy(dtype=float)
 Rsh_volt_drop = values['Rsh'].to_numpy(dtype=float)
 block_diode_volt_drop = values['Bd'].to_numpy(dtype=float)
 Ts_volt_drop = values['Ts'].to_numpy(dtype=float)
-#Ts_volt_drop[Ts_volt_drop  == 0] = np.nan
+#Ts_volt_drop[Ts_volt_drop  == 0] = 0.0000001
 Ip_volt_drop = values['Ip'].to_numpy(dtype=float)
 block_shunt_volt_drop = values['Bsh'].to_numpy(dtype=float)
 block_shunt_volt_drop[block_shunt_volt_drop == 0] = np.nan
@@ -371,7 +372,7 @@ def Rseries_fit(v,
                 *fit_Rs_params):
   return VRs_func(v, *fit_Rs_params)/Rs/A
 
-if show_circuit_legs == 4:
+if show_circuit_legs > 3:
   def Jdark(Rsh, 
             Jo, 
             n, 
@@ -465,7 +466,7 @@ if black_background == True:
 if plot_slopes == True:
   fig, (axs0, axs1)   = plt.subplots(2, 1, sharex=True, figsize=(plot_width, plot_height), clear=False)
 else:
-  fig, axs0 = plt.subplots(1, 1, sharex=True, figsize=(plot_width, plot_height), clear=False, dpi=300, layout='constrained')
+  fig, axs0 = plt.subplots(1, 1, sharex=True, figsize=(plot_width, plot_height), clear=False, dpi=200, layout='constrained')
 
 fig.canvas.manager.set_window_title(files.name) 
 
@@ -499,7 +500,7 @@ if write_model_version == True:
 
 if write_parameter_values == True:
   # Add table of circuit parameters to plot
-  axs0.text(0.02, 0.28, 
+  axs0.text(0.02, 0.5, 
               circuit_parameters_table.to_string(),   
               transform=axs0.transAxes, ha='left')
 
@@ -555,12 +556,13 @@ if show_circuit_legs > 0:
         axs0.plot(v, 
           Inj_p(JoIp, ip, Vo), 
           color=line_color, linewidth=1, linestyle='dashdot')
-#        axs0.plot(v, 
-#          Tseries(JoTs, ts, Vo), 
-#          color=line_color, linewidth=0.8, linestyle='dashdot')
-#        axs0.plot(v, 
-#          SC(JoSC, sc, Vo), 
-#          color=line_color, linewidth=0.8, linestyle='dashdot')
+        if show_circuit_legs > 4:
+          axs0.plot(v, 
+            Tseries(JoTs, ts, Vo), 
+            color=line_color, linewidth=0.5, linestyle='dashdot')
+          axs0.plot(v, 
+            SC(JoSC, sc, Vo), 
+            color=line_color, linewidth=0.5, linestyle='dashdot')
 
 
 #Rseries_line, = axs0.plot(v,
@@ -694,5 +696,92 @@ if plot_voltage_curves == True:
   ax.plot(Vbi_fit_result, Diode_func(Vbi_fit_result, *fit_diode_params), marker='+', markersize=10)
   ax.text(Vbi_fit_result-0.01, 
            Diode_func(Vbi_fit_result, *fit_diode_params)+0.05, '$V_{bi}$', ha='right')
+
+
+
+
+
+'''
+Plot effective voltage
+'''
+
+if plot_effective_voltage == True:
+
+  # Create scatter plot
+  if black_background == True:
+    plt.style.use('dark_background')							#black background
+  fig3, ax = plt.subplots()
+  fig3.canvas.manager.set_window_title('Effective voltage') 
+
+  # Set up iv plot
+  ax.set_ylabel("Current density [A/m$^2$]")
+  ax.set_xlabel("Effective voltage [V]")
+  ax.set_xscale("log")
+  ax.set_yscale("log")
+
+
+
+  # Plot Ts
+  ax.plot(Ts_volt_drop, 
+          np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A, 
+          color='cyan')
+  ax.text(Ts_volt_drop[-1],
+          np.power(JoTs*Ts_volt_drop[-1]/(Vo+Ts_d), ts)/A,
+          'Ts_eff', ha='left')
+
+  # Plot Tsh
+  ax.plot(Tsh_volt_drop, 
+          np.power(JoTsh*Tsh_volt_drop/(Vo+Tsh_d), tsh)/A, 
+          color='red')
+  ax.text(Tsh_volt_drop[-1],
+          np.power(JoTsh*Tsh_volt_drop[-1]/(Vo+Ts_d), tsh)/A,
+          'Tsh_eff', ha='left')
+
+  # Define fit functions
+  def fit_Ts_eff(x, JoTs_eff, ts_eff):
+    return JoTs_eff*np.power(x, ts_eff)
+
+  def fit_Tsh_eff(x, JoTsh_eff, tsh_eff):
+    return JoTsh_eff*np.power(x, tsh_eff)
+
+  # Fit curves
+  fit_Ts_eff_params, pcov = curve_fit(fit_Ts_eff, 
+            Ts_volt_drop, 
+            np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A,
+            p0=[1e6,5],
+            method='lm'
+            )
+  
+  fit_Tsh_eff_params, pcov = curve_fit(fit_Tsh_eff, 
+            Tsh_volt_drop, 
+            np.power(JoTsh*Tsh_volt_drop/(Vo+Tsh_d), tsh)/A,
+            p0=[1,10],
+            method='lm'
+            )
+
+  # Plot fit
+  ax.plot(Ts_volt_drop, 
+          fit_Ts_eff(Ts_volt_drop, *fit_Ts_eff_params), linestyle="dashed",
+          color=line_color)
+
+  ax.plot(Tsh_volt_drop, 
+          fit_Tsh_eff(Tsh_volt_drop, *fit_Tsh_eff_params), linestyle="dashed",
+          color=line_color)
+
+# Create DataFrame
+fit_eff_params = np.concatenate((fit_Tsh_eff_params, fit_Ts_eff_params))
+fit_eff_results = pd.DataFrame(index = ['JoTsh_eff', 'tsh_eff', 'JoTs_eff', 'ts_eff'])
+fit_eff_results['Value'] = fit_eff_params
+
+if write_parameter_values == True:
+  # Add table of parameters to plot
+  ax.text(0.02, 0.75, 
+              fit_eff_results.to_string(),   
+              transform=ax.transAxes, ha='left')
+
+print(fit_eff_results)
+
+JoTs_eff2 = np.power(JoTs/(Vo+Ts_d),ts)
+print(JoTs_eff2)
 
 plt.show()
