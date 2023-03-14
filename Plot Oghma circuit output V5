@@ -19,7 +19,7 @@ import math
 # Type path to folder here (Mac/Windows/Unix compatible):
 
 files = Path(
-  "/Users/arangolab/Library/Mobile Documents/com~apple~CloudDocs/Data for publication/Disorder paper/CircuitSims/20220811-1/circuit_v13-1_c60_40nm_d14_down"
+  "/Users/arangolab/Library/Mobile Documents/com~apple~CloudDocs/Data for publication/Disorder paper/CircuitSims/20221027-1/circuit_v13-1 c60 60nm d14 down/"
 )
 
 ## Windows:
@@ -718,6 +718,9 @@ if plot_effective_voltage == True:
   ax.set_xlabel("Effective voltage [V]")
   ax.set_xscale("log")
   ax.set_yscale("log")
+  ax.set_xlim(xmin=0.001)
+  ax.set_ylim(ymin=0.00001, 
+              ymax=3*np.power(JoTs*Ts_volt_drop[-1]/(Vo+Ts_d), ts)/A)
 
 
 
@@ -728,6 +731,12 @@ if plot_effective_voltage == True:
   ax.text(Ts_volt_drop[-1],
           np.power(JoTs*Ts_volt_drop[-1]/(Vo+Ts_d), ts)/A,
           'Ts_eff', ha='left')
+  ax.plot(v, 
+          np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A, 
+          color='cyan')
+  ax.text(v[-1],
+        np.power(JoTs*Ts_volt_drop[-1]/(Vo+Ts_d), ts)/A,
+        'Ts', ha='left')
 
   # Plot Tsh
   ax.plot(Tsh_volt_drop, 
@@ -736,6 +745,12 @@ if plot_effective_voltage == True:
   ax.text(Tsh_volt_drop[-1],
           np.power(JoTsh*Tsh_volt_drop[-1]/(Vo+Ts_d), tsh)/A,
           'Tsh_eff', ha='left')
+  ax.plot(v, 
+          np.power(JoTsh*Tsh_volt_drop/(Vo+Tsh_d), tsh)/A, 
+          color='red')
+  ax.text(v[-1],
+          np.power(JoTsh*Tsh_volt_drop[-1]/(Vo+Ts_d), tsh)/A,
+          'Tsh', ha='left')
 
   # Define fit functions
   def fit_Ts_eff(x, JoTs_eff, ts_eff):
