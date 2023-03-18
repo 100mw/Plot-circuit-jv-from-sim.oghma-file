@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy import interpolate
-import math
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 
@@ -42,24 +41,28 @@ Set plotting attributes
 black_background = True
 line_color = 'white'
 
-plot_slopes = False
-plot_voltage_curves = False
+plot_slopes = True
+plot_voltage_curves = True
 plot_effective_voltage = True
 
-write_model_version = False
+write_model_version = True
 write_parameter_values = True
 
-plot_Vbi_point = False
-plot_Vo_point = False
-plot_Vr_point = False
+plot_Vbi_point = True
+plot_Vo_point = True
+plot_Vr_point = True
 
 plot_width = 5
-plot_height = 6 
+plot_height = 6
 
-show_circuit_legs = 5  
+show_circuit_legs = 5
 fill_under_curve = 0.2
 
-# Open raw data file
+
+'''
+Open raw data file
+'''
+
 data_raw = pd.read_csv(files / "fit_data0.inp", sep="\t", skiprows=1, header=None)
 data_raw = data_raw.loc[(data_raw!=0).any(axis=1)]
 print(data_raw)
@@ -78,20 +81,40 @@ folders = list(netlist.glob('*/'))
 
 # Iterate through each folder and read circuit_labels.dat files
 values = pd.DataFrame()											#create empty DataFrame
-for x in range(len(folders)):									#iterate over list with length = number of folders
-	step = folders[x].name										#get folder name, step number
-	#print(step)
-	if step == ".DS_Store" or step == "results" or step == "data.json":					#do not use .DS_Store file
+
+#iterate over list with length = number of folders
+for x in range(len(folders)):
+  
+  #get folder name, step number
+	step = folders[x].name
+  
+  #do not use .DS_Store file
+	if step == ".DS_Store" or step == "results" or step == "data.json":
 		continue
-	temp = pd.DataFrame()										#create/empty temporary DataFrame
-	temp = pd.read_json(folders[x] / "circuit_labels.dat")		#Read circuit_labels into DataFrame
-	temp.loc[int(step)] = temp.loc['v0'] - temp.loc['v1']		#Calculate v0-v1, label row with step number as integer
-	temp.drop(['com', 'uid', 'i', 'v0', 'v1'], inplace=True)	#Delete other rows
-	temp.rename(columns={'segments':'Voltage [V]'}, inplace=True)#rename "segments" column
-	with open(folders[x] / "data.json", 'r') as f:				#open data.json file
+  
+	temp = pd.DataFrame()
+  
+  #Read circuit_labels into DataFrame
+	temp = pd.read_json(folders[x] / "circuit_labels.dat")
+  
+  #Calculate v0-v1, label row with step number as integer
+	temp.loc[int(step)] = temp.loc['v0'] - temp.loc['v1']
+  
+  #Delete other rows
+	temp.drop(['com', 'uid', 'i', 'v0', 'v1'], inplace=True)
+  
+  #rename "segments" column
+	temp.rename(columns={'segments':'Voltage [V]'}, inplace=True)
+  
+  #open data.json file
+	with open(folders[x] / "data.json", 'r') as f:				
 		data = json.load(f)
-	temp.at[int(step), 'Voltage [V]'] = data['voltage']			#get voltage from data.json and write to temp DataFrame
-	values = pd.concat([values, temp])							#append new row to DataFrame
+    
+  #get voltage from data.json and write to temp DataFrame
+	temp.at[int(step), 'Voltage [V]'] = data['voltage']
+  
+  #append new row to DataFrame
+	values = pd.concat([values, temp])
 
 # Sort DataFrame
 values.sort_index(axis=0,kind='stable',inplace=True)
@@ -109,7 +132,6 @@ values.rename(columns={
   'segment8' :  'SC'
   }, inplace=True)
 
-print(values)
 
 v = values['Voltage [V]'].to_numpy(dtype=float)
 Diode_volt_drop = values['D'].to_numpy(dtype=float)
@@ -144,17 +166,18 @@ Rs_n_guess = 1
 
 # Define Diode voltage drop function
 def Diode_func(x, Vbi_fit, diode_width):
-#  return Vbi_fit*(1-np.exp(-x/diode_width))
-  return x-diode_width*np.log(np.exp((x-Vbi_fit)/diode_width)+1)
+  return Vbi_fit*(1-np.exp(-x/diode_width))
+#  return x-diode_width*np.log(np.exp((x-Vbi_fit)/diode_width)+1)
 
 # Fit Diode voltage drop
 fit_diode_params, diode_pcov = curve_fit(Diode_func, 
                                     v, 
                                     Diode_volt_drop, 
                                     p0=[Vbi_guess, diode_width_guess], 
-                                    method='lm'
-)
-perr_diode = np.sqrt(np.diag(diode_pcov))		  #standard deviation of errors 
+                                    method='lm')
+
+#standard deviation of errors
+perr_diode = np.sqrt(np.diag(diode_pcov))
 
 # Define Inj voltage drop function
 def Ip_func(x, Vo_fit, Ip_width, Ip_n):
@@ -166,9 +189,10 @@ fit_Inj_params, Inj_pcov = curve_fit(Ip_func,
                                       Ip_volt_drop, 
                                       p0=[ Vo_guess, 
                                             Ip_width_guess,
-                                            Ip_n_guess], method='lm'
-)
-perr_Inj = np.sqrt(np.diag(Inj_pcov))		  		#standard deviation of errors 
+                                            Ip_n_guess], method='lm')
+    
+#standard deviation of errors
+perr_Inj = np.sqrt(np.diag(Inj_pcov))		  		 
 
 # Define Rs voltage drop function
 def VRs_func(x, Vr_fit, Rs_width, Rs_n):
@@ -179,24 +203,31 @@ fit_Rs_params, Rs_pcov = curve_fit(VRs_func,
                               v, 
                               Rs_volt_drop,
                               p0=[Vr_guess, Rs_width_guess, Rs_n_guess], 
-                              method='lm'
-)
+                              method='lm')
+                            
 perr_Rs = np.sqrt(np.diag(Rs_pcov))	
 
 fit_params = np.concatenate((fit_diode_params, fit_Inj_params, fit_Rs_params))
 perr = np.concatenate((perr_diode, perr_Inj, perr_Rs))
 
 # Create DataFrame
-fit_results = pd.DataFrame(index = ['Vbi', 'diode width', 'Vo', 'Ip_width', 'Ip_n', 'Vr', 'Rs_width', 'Rs_n'])
+fit_results = pd.DataFrame(index = ['Vbi', 
+                                    'diode width', 
+                                    'Vo', 
+                                    'Ip_width', 
+                                    'Ip_n', 
+                                    'Vr', 
+                                    'Rs_width', 
+                                    'Rs_n'])
 fit_results['Value'] = fit_params
 #fit_results['Error'] = perr
+
 print(fit_results)
 
 Vbi_fit_result = fit_diode_params[0]
 Vo_fit_result = fit_Inj_params[0]
 Vr_fit_result = fit_Rs_params[0]
-  
-  
+
   
 
 '''
@@ -214,11 +245,8 @@ for i in range(len(numbers)):
 segments = [segment[i] + numbers_str[i] for i in range(len(segment))]
 
 # Open sim file
-#with ZipFile(files / 'sim.oghma') as myzip:
 myfile = open(files / 'sim.json')
-    #print(myfile.read())
 sim = json.load(myfile)
-    #circuit_diagram = sim["circuit_diagram"]
 circuit = sim["circuit"]
 circuit_diagram = circuit["circuit_diagram"]
 for i in range(len(segments)):
@@ -437,8 +465,15 @@ def Jdark_slope(Rsh,
           ip,
           Vbi, 
           Vo):
-    return np.gradient(np.log10(Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo)),    
-                        np.log10(v))
+    return np.gradient(np.log10(Jdark(Rsh, 
+                                      Jo, 
+                                      n, 
+                                      JoTsh, 
+                                      tsh, 
+                                      JoIp, 
+                                      ip, 
+                                      Vbi, 
+                                      Vo)), np.log10(v))
 
 
 '''''
@@ -464,27 +499,24 @@ if black_background == True:
   plt.style.use('dark_background')							#black background
 
 if plot_slopes == True:
-  fig, (axs0, axs1)   = plt.subplots(2, 1, sharex=True, figsize=(plot_width, plot_height), clear=False)
+  fig, (axs0, axs1)   = plt.subplots(2, 1, sharex=True, figsize=(plot_width, plot_height), dpi=200)
+  
+  #adjust plot margins
+  fig.subplots_adjust(top=0.98, right=0.98, bottom=0.07, left=0.13, hspace=0)
+  
 else:
-  fig, axs0 = plt.subplots(1, 1, sharex=True, figsize=(plot_width, plot_height), clear=False, dpi=200, layout='constrained')
+  fig, axs0 = plt.subplots(1, 1, sharex=True, figsize=(plot_width, plot_height), dpi=200, layout='constrained')
 
 fig.canvas.manager.set_window_title(files.name) 
-
-
 
 # Set up iv plot
 axs0.set_ylabel("Current density [A/m$^2$]")
 axs0.set_xscale("log")
 axs0.set_yscale("log")
 
-#adjust plot margins
-#fig.subplots_adjust(top=0.98, right=0.98, bottom=0.07, left=0.12, hspace=0)
-#plt.tight_layout()
-
 if plot_slopes == False:
   axs0.set_xlabel("Voltage [V]")  
   
-
 # Add raw data to iv plot
 axs0.scatter(v_data, j_data, s=8, color='#4d96f9')
 
@@ -495,12 +527,14 @@ axs0.set_ylim(
 )
 
 if write_model_version == True:
+  
   #text box for model version
   axs0.text(0.8, 0.05, model_version, transform=axs0.transAxes)		
 
 if write_parameter_values == True:
+  
   # Add table of circuit parameters to plot
-  axs0.text(0.02, 0.5, 
+  axs0.text(0.02, 0.1, 
               circuit_parameters_table.to_string(),   
               transform=axs0.transAxes, ha='left')
 
@@ -517,13 +551,14 @@ if plot_slopes == True:
 
   # set axis limits
   axs1.set_ylim(			
-                  1,			            
+                  1,
                   3*np.nanmax(jv_slope)			# grab max
   )
 
-  if write_parameter_values == True:            
+  if write_parameter_values == True:
+    
     # Add table of votages to plot
-    axs1.text(0.02, -0.41, 
+    axs1.text(0.02, -0.5, 
                 fit_results.to_string(),   
                 transform=axs0.transAxes, ha='left')
           
@@ -661,7 +696,7 @@ if plot_voltage_curves == True:
   # Create scatter plot
   if black_background == True:
     plt.style.use('dark_background')							#black background
-  fig2, ax = plt.subplots()
+  fig2, ax = plt.subplots(dpi=200, layout='constrained')
   fig2.canvas.manager.set_window_title('Voltage drops') 
 
   # Add DataFrame data to plot
@@ -710,7 +745,7 @@ if plot_effective_voltage == True:
   # Create scatter plot
   if black_background == True:
     plt.style.use('dark_background')							#black background
-  fig3, ax = plt.subplots()
+  fig3, ax = plt.subplots(dpi=200, layout='constrained')
   fig3.canvas.manager.set_window_title('Effective voltage') 
 
   # Set up iv plot
