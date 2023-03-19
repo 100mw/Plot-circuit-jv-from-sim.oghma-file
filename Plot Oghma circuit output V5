@@ -42,8 +42,8 @@ black_background = True
 line_color = 'white'
 
 plot_slopes = True
-plot_voltage_curves = True
-plot_effective_voltage = True
+plot_voltage_curves = False
+plot_effective_voltage = False
 
 write_model_version = True
 write_parameter_values = True
@@ -739,6 +739,30 @@ if plot_voltage_curves == True:
 '''
 Plot effective voltage
 '''
+  
+# Define fit functions
+def fit_Ts_eff(x, JoTs_eff, ts_eff):
+  return JoTs_eff*np.power(x, ts_eff)
+
+def fit_Tsh_eff(x, JoTsh_eff, tsh_eff):
+  return JoTsh_eff*np.power(x, tsh_eff)
+
+# Definecurves
+fit_Ts_eff_params, pcov = curve_fit(fit_Ts_eff, 
+          Ts_volt_drop, 
+          np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A,
+          p0=[1e6,5],
+          method='lm'
+          )
+
+fit_Tsh_eff_params, pcov = curve_fit(fit_Tsh_eff, 
+          Tsh_volt_drop, 
+          np.power(JoTsh*Tsh_volt_drop/(Vo+Tsh_d), tsh)/A,
+          p0=[1,10],
+          method='lm'
+          )
+
+
 
 if plot_effective_voltage == True:
 
@@ -787,27 +811,7 @@ if plot_effective_voltage == True:
           np.power(JoTsh*Tsh_volt_drop[-1]/(Vo+Ts_d), tsh)/A,
           'Tsh', ha='left')
 
-  # Define fit functions
-  def fit_Ts_eff(x, JoTs_eff, ts_eff):
-    return JoTs_eff*np.power(x, ts_eff)
 
-  def fit_Tsh_eff(x, JoTsh_eff, tsh_eff):
-    return JoTsh_eff*np.power(x, tsh_eff)
-
-  # Fit curves
-  fit_Ts_eff_params, pcov = curve_fit(fit_Ts_eff, 
-            Ts_volt_drop, 
-            np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A,
-            p0=[1e6,5],
-            method='lm'
-            )
-  
-  fit_Tsh_eff_params, pcov = curve_fit(fit_Tsh_eff, 
-            Tsh_volt_drop, 
-            np.power(JoTsh*Tsh_volt_drop/(Vo+Tsh_d), tsh)/A,
-            p0=[1,10],
-            method='lm'
-            )
 
   # Plot fit
   ax.plot(Ts_volt_drop, 
@@ -823,15 +827,13 @@ fit_eff_params = np.concatenate((fit_Tsh_eff_params, fit_Ts_eff_params))
 fit_eff_results = pd.DataFrame(index = ['JoTsh_eff', 'tsh_eff', 'JoTs_eff', 'ts_eff'])
 fit_eff_results['Value'] = fit_eff_params
 
-if write_parameter_values == True:
+if write_parameter_values == True and plot_effective_voltage == True:
+  
   # Add table of parameters to plot
   ax.text(0.02, 0.75, 
               fit_eff_results.to_string(),   
               transform=ax.transAxes, ha='left')
 
 print(fit_eff_results)
-
-JoTs_eff2 = np.power(JoTs/(Vo+Ts_d),ts)
-print(JoTs_eff2)
 
 plt.show()
