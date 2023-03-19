@@ -40,6 +40,7 @@ Set plotting attributes
 
 black_background = True
 line_color = 'white'
+dpi=150
 
 plot_slopes = True
 plot_voltage_curves = False
@@ -53,7 +54,7 @@ plot_Vo_point = True
 plot_Vr_point = True
 
 plot_width = 5
-plot_height = 6
+plot_height = 7
 
 show_circuit_legs = 5
 fill_under_curve = 0.2
@@ -335,7 +336,7 @@ print(circuit_parameters_table)
 Circuit functions - circuit elements
 """
 
-model_version = 'Model V13-1' 
+model_version = 'Model V13-2' 
 
 Vbi = Tsh_Vo
 Vo = Ip_Vo
@@ -499,13 +500,13 @@ if black_background == True:
   plt.style.use('dark_background')							#black background
 
 if plot_slopes == True:
-  fig, (axs0, axs1)   = plt.subplots(2, 1, sharex=True, figsize=(plot_width, plot_height), dpi=200)
+  fig, (axs0, axs1)   = plt.subplots(2, 1, sharex=True, figsize=(plot_width, plot_height), dpi=dpi)
   
   #adjust plot margins
   fig.subplots_adjust(top=0.98, right=0.98, bottom=0.07, left=0.13, hspace=0)
   
 else:
-  fig, axs0 = plt.subplots(1, 1, sharex=True, figsize=(plot_width, plot_height), dpi=200, layout='constrained')
+  fig, axs0 = plt.subplots(1, 1, sharex=True, figsize=(plot_width, plot_height), dpi=dpi, layout='constrained')
 
 fig.canvas.manager.set_window_title(files.name) 
 
@@ -533,9 +534,15 @@ if write_model_version == True:
 
 if write_parameter_values == True:
   
+  # remove column names from string
+  circuit_parameters_table_temp = circuit_parameters_table.to_string()
+  rows = circuit_parameters_table_temp.split('\n')
+  rows.pop(0)
+  circuit_parameters_table_string = '\n'.join(rows)
+  
   # Add table of circuit parameters to plot
-  axs0.text(0.02, 0.1, 
-              circuit_parameters_table.to_string(),   
+  axs0.text(0.02, 0.21, 
+              circuit_parameters_table_string,   
               transform=axs0.transAxes, ha='left')
 
 # Prepare slope plot
@@ -557,9 +564,15 @@ if plot_slopes == True:
 
   if write_parameter_values == True:
     
+    # remove column names from string
+    fit_results_string_temp = fit_results.to_string()
+    rows = fit_results_string_temp.split('\n')
+    rows.pop(0)
+    fit_results_string = '\n'.join(rows)
+    
     # Add table of votages to plot
-    axs1.text(0.02, -0.5, 
-                fit_results.to_string(),   
+    axs1.text(0.02, -0.4, 
+                fit_results_string,   
                 transform=axs0.transAxes, ha='left')
           
 # Add sum of legs
@@ -696,7 +709,7 @@ if plot_voltage_curves == True:
   # Create scatter plot
   if black_background == True:
     plt.style.use('dark_background')							#black background
-  fig2, ax = plt.subplots(dpi=200, layout='constrained')
+  fig2, ax = plt.subplots(dpi=dpi, layout='constrained')
   fig2.canvas.manager.set_window_title('Voltage drops') 
 
   # Add DataFrame data to plot
@@ -769,7 +782,7 @@ if plot_effective_voltage == True:
   # Create scatter plot
   if black_background == True:
     plt.style.use('dark_background')							#black background
-  fig3, ax = plt.subplots(dpi=200, layout='constrained')
+  fig3, ax = plt.subplots(dpi=dpi, layout='constrained')
   fig3.canvas.manager.set_window_title('Effective voltage') 
 
   # Set up iv plot
