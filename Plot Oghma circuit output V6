@@ -40,12 +40,12 @@ Set plotting attributes
 '''
 
 black_background = True
-dpi=180
+dpi=170
 line_color = 'white'
 data_color = 'darkcyan'
 fit_color = 'deeppink'
 elements_line_color = 'gray'
-linewidth = 0.9
+linewidth = 1.5
 
 plot_slopes = True
 plot_voltage_curves = False
@@ -61,7 +61,7 @@ plot_Vo_point = True
 plot_Vr_point = True
 
 plot_width = 6
-plot_height = 8
+plot_height = 8.3
 
 show_circuit_legs = 5
 fill_under_curve = 0
@@ -738,26 +738,26 @@ if (plot_Vbi_point == True or
 if show_circuit_legs > 0:
   Rshunt_line, = axs0.plot(v, 
     Rshunt(Rsh), 
-    color=elements_line_color, linewidth=linewidth/2, linestyle='dotted')
+    color=elements_line_color, linewidth=linewidth, linestyle='dotted')
   if show_circuit_legs > 1:
     axs0.plot(v, 
       Diode(Jo, n), 
-      color=elements_line_color, linewidth=linewidth/2, linestyle='dashed')
+      color=elements_line_color, linewidth=linewidth, linestyle='dashed')
     if show_circuit_legs > 2:
       axs0.plot(v, 
         Tshunt(JoTsh, tsh, Vbi), 
-        color=elements_line_color, linewidth=linewidth/2, linestyle=(0,(1,1)))
+        color=elements_line_color, linewidth=linewidth, linestyle=(0,(1,1)))
       if show_circuit_legs > 3:
         axs0.plot(v, 
           Inj_p(JoIp, ip, Vo), 
-          color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot')
+          color=elements_line_color, linewidth=linewidth, linestyle='dashdot')
         if show_circuit_legs > 4:
           axs0.plot(v, 
             Tseries(JoTs, ts, Vo), 
-            color=line_color, linewidth=linewidth/4, linestyle='dashdot')
+            color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot')
           axs0.plot(v, 
             SC(JoSC, sc, Vo), 
-            color=line_color, linewidth=linewidth/4, linestyle='dashdot')
+            color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot')
 
 
 #Rseries_line, = axs0.plot(v,
