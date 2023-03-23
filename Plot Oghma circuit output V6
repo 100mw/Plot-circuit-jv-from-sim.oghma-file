@@ -24,7 +24,7 @@ files = Path(
 
 ## Windows:
 #files = Path(
-# "C:/Users/aarango/Documents/circuit_v12-1_c60_40nm_d14_down"
+# "C:/Users/aarango/Documents/circuit_v12-3 c60 30nm d10 up"
 #)
 
 
@@ -51,6 +51,8 @@ plot_slopes = True
 plot_voltage_curves = False
 plot_effective_voltage = False
 
+slope_smoothing = 0.29
+
 write_model_version = True
 write_parameter_values = True
 
@@ -64,7 +66,7 @@ plot_height = 8
 show_circuit_legs = 5
 fill_under_curve = 0
 
-model_version = 'Model V13-2' 
+model_version = 'Model V13-3' 
 
 
 '''
@@ -517,8 +519,10 @@ Tseries_slope = np.gradient(np.log10(Tseries(JoTs, ts, Vo)), np.log10(v), edge_o
 SC_slope = np.gradient(np.log10(SC(JoSC, sc, Vo)), np.log10(v), edge_order=2)
 Rseries_fit_slope = np.gradient(np.log10(Rseries_fit(v, Rs, *fit_Rs_params)), np.log10(v), edge_order=2)
 
+jv_slope_spline = UnivariateSpline(v_data, jv_slope, k=5, s=slope_smoothing)
+
 # Find curvatures
-jv_curvature = np.gradient(jv_slope, np.log10(v_data), edge_order=2)
+jv_curvature_spline = np.gradient(jv_slope_spline(v_data), np.log10(v_data), edge_order=2)
 Diode_curvature = np.gradient(Diode_slope, np.log10(v), edge_order=2)
 Tshunt_curvature = np.gradient(Tshunt_slope, np.log10(v), edge_order=2)
 Inj_curvature = np.gradient(Inj_slope, np.log10(v), edge_order=2)
@@ -531,8 +535,8 @@ Rseries_fit_curvature = np.gradient(Rseries_fit_slope, np.log10(v), edge_order=2
 #tck = splrep(v_data, jv_slope, s=2)
 #jv_slope_spline = BSpline(*tck)(v_data)
 #jv_slope_spline = Akima1DInterpolator(v_data, jv_slope)
-jv_slope_spline = UnivariateSpline(v_data, jv_slope, k=5, s=0.25)
-jv_curvature_spline = UnivariateSpline(v_data, jv_curvature, k=5, s=5000)
+
+#jv_curvature_spline = UnivariateSpline(v_data, jv_curvature, k=5, s=5000)
 
 """
 Plotting
@@ -618,11 +622,11 @@ if plot_slopes == True:
                   1.2*np.nanmax(jv_slope)			# grab max
   )
   
-  array_section = round(len(jv_curvature)/2)
+  array_section = round(len(jv_curvature_spline)/2)
   
   axs2.set_ylim(
-                  1.1*np.nanmin(jv_curvature[array_section :]),
-                  1.1*np.nanmax(jv_curvature[array_section :])  
+                  1.1*np.nanmin(jv_curvature_spline[array_section :]),
+                  1.1*np.nanmax(jv_curvature_spline[array_section :])  
                 )
   
   # Add fit to slope plot
@@ -647,7 +651,7 @@ if plot_slopes == True:
             linewidth=linewidth, c=fit_color, label='Fit')
   
   # Add data to curvature plot
-  axs2.plot(v_data, jv_curvature_spline(v_data), linewidth=linewidth, color=data_color)
+  axs2.plot(v_data, jv_curvature_spline, linewidth=linewidth, color=data_color)
   
   
   
