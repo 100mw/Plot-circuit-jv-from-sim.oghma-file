@@ -614,7 +614,7 @@ if plot_slopes == True:
   # Set up slope plot
   #axs1.set_xlabel("Voltage [V]")
   axs1.set_ylabel("Slope of log-log j-v curve")
-  axs1.set_yscale("log")
+  #axs1.set_yscale("log")
 
   # set axis limits
   axs1.set_ylim(			
@@ -703,15 +703,15 @@ if (plot_Vbi_point == True or
     if plot_Vbi_point == True:
       axs1.plot(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
       Vbi_text = axs1.text(Vbi_fit_result*np.power(10,-0.02), 
-                          fint_Jdark_slope(Vbi_fit_result)*np.power(10, 0.05), '$V_{bi}$', ha='right')
+                          fint_Jdark_slope(Vbi_fit_result) + plot_height/30, '$V_{bi}$', ha='right')
     if plot_Vo_point == True:
       axs1.plot(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
       Vo_text = axs1.text(Vo_fit_result*np.power(10,0.02), 
-                          fint_Jdark_slope(Vo_fit_result)*np.power(10, 0.05), '$V_{0}$', ha='left')
+                          fint_Jdark_slope(Vo_fit_result) + plot_height/30, '$V_{0}$', ha='left')
     if plot_Vr_point == True:
       axs1.plot(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
       Vr_text = axs1.text(Vr_fit_result*np.power(10,0.02), 
-                          fint_Jdark_slope(Vr_fit_result)*np.power(10, 0.05), '$V_{r}$', ha='left')
+                          fint_Jdark_slope(Vr_fit_result) + plot_height/30, '$V_{r}$', ha='left')
       
     # Interpolate curvature
     fint_Jdark_curvature = interpolate.interp1d(v, Jdark_curvature(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
@@ -720,15 +720,15 @@ if (plot_Vbi_point == True or
     if plot_Vbi_point == True:
       axs2.plot(Vbi_fit_result, fint_Jdark_curvature(Vbi_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
       Vbi_text = axs2.text(Vbi_fit_result*np.power(10,-0.02), 
-                          fint_Jdark_curvature(Vbi_fit_result)*np.power(10, 0.05), '$V_{bi}$', ha='right')
+                          fint_Jdark_curvature(Vbi_fit_result) + plot_height/30, '$V_{bi}$', ha='right')
     if plot_Vo_point == True:
       axs2.plot(Vo_fit_result, fint_Jdark_curvature(Vo_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
       Vo_text = axs2.text(Vo_fit_result*np.power(10,0.02), 
-                          fint_Jdark_curvature(Vo_fit_result)*np.power(10, 0.05), '$V_{0}$', ha='left')
+                          fint_Jdark_curvature(Vo_fit_result) + plot_height/30, '$V_{0}$', ha='left')
     if plot_Vr_point == True:
       axs2.plot(Vr_fit_result, fint_Jdark_curvature(Vr_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
       Vr_text = axs2.text(Vr_fit_result*np.power(10,0.02), 
-                          fint_Jdark_curvature(Vr_fit_result)*np.power(10, 0.05), '$V_{r}$', ha='left')
+                          fint_Jdark_curvature(Vr_fit_result) + plot_height/30, '$V_{r}$', ha='left')
     
 
 
