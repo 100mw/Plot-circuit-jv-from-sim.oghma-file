@@ -43,15 +43,16 @@ black_background = True
 dpi=170
 line_color = 'white'
 data_color = 'darkcyan'
+point_color = 'darkblue'
 fit_color = 'deeppink'
 elements_line_color = 'gray'
-linewidth = 1.5
+linewidth = 1
 
 plot_slopes = True
 plot_voltage_curves = False
 plot_effective_voltage = False
 
-slope_smoothing = 0.29
+slope_smoothing = 0.2
 
 write_model_version = True
 write_parameter_values = True
@@ -510,6 +511,8 @@ def Jdark_curvature(Rsh,
 Find slopes and curvatures
 '''''
 
+jv_spline = UnivariateSpline(v_data, j_data, k=5, s=0.0001)
+
 # Find slopes
 jv_slope = np.gradient(np.log10(j_data), np.log10(v_data), edge_order=2)
 Diode_slope = np.gradient(np.log10(Diode(Jo, n)), np.log10(v), edge_order=2)
@@ -520,9 +523,12 @@ SC_slope = np.gradient(np.log10(SC(JoSC, sc, Vo)), np.log10(v), edge_order=2)
 Rseries_fit_slope = np.gradient(np.log10(Rseries_fit(v, Rs, *fit_Rs_params)), np.log10(v), edge_order=2)
 
 jv_slope_spline = UnivariateSpline(v_data, jv_slope, k=5, s=slope_smoothing)
+#jv_spline_gradient = np.gradient(np.log10(jv_spline(v_data)), np.log10(v_data), edge_order=0)
 
 # Find curvatures
+jv_curvature = np.gradient(jv_slope, np.log10(v_data), edge_order=2)
 jv_curvature_spline = np.gradient(jv_slope_spline(v_data), np.log10(v_data), edge_order=2)
+#jv_spline_gradient2 = np.gradient(jv_spline_gradient, np.log10(v_data), edge_order=2)
 Diode_curvature = np.gradient(Diode_slope, np.log10(v), edge_order=2)
 Tshunt_curvature = np.gradient(Tshunt_slope, np.log10(v), edge_order=2)
 Inj_curvature = np.gradient(Inj_slope, np.log10(v), edge_order=2)
@@ -565,6 +571,8 @@ axs0.set_yscale("log")
 if plot_slopes == False:
   axs0.set_xlabel("Voltage [V]")  
 
+# Add raw data to iv plot
+axs0.plot(v_data, j_data, linewidth=0, color=point_color, marker='o', markersize=2)
 
 # Add fit (sum of legs)
 Jdark_line, = axs0.plot(v, 
@@ -576,9 +584,8 @@ axs0.fill_between(v,
                   color='yellow', 
                   alpha = fill_under_curve)
 
-
-# Add raw data to iv plot
-axs0.plot(v_data, j_data, linewidth=linewidth, color=data_color)
+# Add spline
+axs0.plot(v_data, jv_spline(v_data), linewidth=linewidth, color=data_color)
 
 # set axis limits
 axs0.set_ylim(			
@@ -629,14 +636,17 @@ if plot_slopes == True:
                   1.1*np.nanmax(jv_curvature_spline[array_section :])  
                 )
   
+  # Add gradient of raw data to slope plot
+  axs1.plot(v_data, jv_slope, linewidth=0, color=point_color, marker='o', markersize=2)
+  
   # Add fit to slope plot
   axs1.plot(v, 
               Jdark_slope(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), 
               linewidth=linewidth, c=fit_color, label='Fit')
   
-  # Add data to slope plot
+  # Add spine to slope plot
   axs1.plot(v_data, jv_slope_spline(v_data), linewidth=linewidth, color=data_color)
-  
+  #axs1.plot(v_data, jv_spline_gradient, linewidth=linewidth, color='orange')
   
   
   # Prepare curvature plot
@@ -645,6 +655,9 @@ if plot_slopes == True:
   axs2.set_xlabel("Voltage [V]")
   axs2.set_ylabel("Curvature of log-log j-v curve")
   
+  # Add gradient of raw data to curvature plot
+  axs2.plot(v_data, jv_curvature, linewidth=0, color=point_color, marker='o', markersize=2)
+  
   # Add fit to curvature plot
   axs2.plot(v,
             Jdark_curvature(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), 
@@ -652,7 +665,7 @@ if plot_slopes == True:
   
   # Add data to curvature plot
   axs2.plot(v_data, jv_curvature_spline, linewidth=linewidth, color=data_color)
-  
+  #axs2.plot(v_data, jv_spline_gradient2, linewidth=linewidth, color='orange')
   
   
   if write_parameter_values == True:
@@ -738,19 +751,19 @@ if (plot_Vbi_point == True or
 if show_circuit_legs > 0:
   Rshunt_line, = axs0.plot(v, 
     Rshunt(Rsh), 
-    color=elements_line_color, linewidth=linewidth, linestyle='dotted')
+    color=elements_line_color, linewidth=linewidth/1.5, linestyle='dotted')
   if show_circuit_legs > 1:
     axs0.plot(v, 
       Diode(Jo, n), 
-      color=elements_line_color, linewidth=linewidth, linestyle='dashed')
+      color=elements_line_color, linewidth=linewidth/1.5, linestyle='dashed')
     if show_circuit_legs > 2:
       axs0.plot(v, 
         Tshunt(JoTsh, tsh, Vbi), 
-        color=elements_line_color, linewidth=linewidth, linestyle=(0,(1,1)))
+        color=elements_line_color, linewidth=linewidth/1.5, linestyle=(0,(1,1)))
       if show_circuit_legs > 3:
         axs0.plot(v, 
           Inj_p(JoIp, ip, Vo), 
-          color=elements_line_color, linewidth=linewidth, linestyle='dashdot')
+          color=elements_line_color, linewidth=linewidth/1.5, linestyle='dashdot')
         if show_circuit_legs > 4:
           axs0.plot(v, 
             Tseries(JoTs, ts, Vo), 
@@ -772,23 +785,23 @@ if plot_slopes == True:
   
   axs1.plot(v, 
       Diode_slope, 
-      color=elements_line_color, linewidth=linewidth/2, linestyle='dashed')
+      color=elements_line_color, linewidth=linewidth/1.5, linestyle='dashed')
     
   axs1.plot(v, 
       Tshunt_slope, 
-      color=elements_line_color, linewidth=linewidth/2, linestyle=(0,(1,1)))
+      color=elements_line_color, linewidth=linewidth/1.5, linestyle=(0,(1,1)))
     
   axs1.plot(v, 
         Inj_slope, 
-        color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot')  
+        color=elements_line_color, linewidth=linewidth/1.5, linestyle='dashdot')  
       
   axs1.plot(v, 
         Tseries_slope, 
-        color=elements_line_color, linewidth=linewidth/4, linestyle='dashdot') 
+        color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot') 
       
   axs1.plot(v, 
         SC_slope, 
-        color=elements_line_color, linewidth=linewidth/4, linestyle='dashdot') 
+        color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot') 
 
 #  axs1.plot(v, 
 #        Rseries_fit_slope, 
