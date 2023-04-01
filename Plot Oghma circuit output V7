@@ -1,0 +1,1029 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Feb  9 15:37:57 2023
+
+@author: aarango
+"""
+
+#!/usr/bin/env python3
+
+from pathlib import Path
+import pandas as pd
+import json
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.optimize import curve_fit
+from scipy import interpolate
+from scipy.interpolate import UnivariateSpline
+
+# Type path to folder here (Mac/Windows/Unix compatible):
+
+files = Path(
+  "/Users/alexiarango/Documents/Oghma/Circuit V13-3/circuit_v13-3 c60 40nm d14 up/"
+)
+
+## Windows:
+#files = Path(
+# "C:/Users/aarango/Documents/circuit_v12-3 c60 30nm d10 up"
+#)
+
+
+# Set global constants here:
+
+A = 0.00000121	          # device area
+k = 8.617333262e-5		    # Boltzmann constant
+T = 300					          # temperature
+
+
+'''
+Set plotting attributes
+'''
+
+slope_smoothing = 0.3
+
+black_background = True
+dpi=170
+line_color = 'white'
+data_color = 'darkcyan'
+point_color = (0.3, 0.3, 0.3)
+fit_color = 'deeppink'
+elements_line_color = 'gray'
+linewidth = 1
+
+plot_slopes = True
+plot_voltage_curves = False
+plot_effective_voltage = False
+
+write_model_version = True
+write_parameter_values = True
+
+plot_Vbi_point = True
+plot_Vo_point = True
+plot_Vr_point = True
+
+plot_width = 6
+plot_height = 8.3
+
+show_circuit_legs = 5
+fill_under_curve = 0
+
+model_version = 'Model V13-3' 
+
+save_fit_branches = True
+
+
+'''
+Open raw data file
+'''
+
+data_raw = pd.read_csv(files / "fit_data0.inp", sep="\t", skiprows=1, header=None)
+data_raw = data_raw.loc[(data_raw!=0).any(axis=1)]
+#print(data_raw)
+v_data = data_raw[data_raw.columns[0]].to_numpy()
+j_data = data_raw[data_raw.columns[1]].to_numpy()
+
+
+''''
+Extract voltage drops across circuit elements
+'''
+
+# Generate list folder paths in netlist folder
+netlist = files / "netlist/"
+folders = list(netlist.glob('*/'))
+#print(folders)
+
+# Iterate through each folder and read circuit_labels.dat files
+values = pd.DataFrame()											#create empty DataFrame
+
+#iterate over list with length = number of folders
+for x in range(len(folders)):
+  
+  #get folder name, step number
+	step = folders[x].name
+  
+  #do not use .DS_Store file
+	if step == ".DS_Store" or step == "results" or step == "data.json":
+		continue
+  
+	temp = pd.DataFrame()
+  
+  #Read circuit_labels into DataFrame
+	temp = pd.read_json(folders[x] / "circuit_labels.dat")
+  
+  #Calculate v0-v1, label row with step number as integer
+	temp.loc[int(step)] = temp.loc['v0'] - temp.loc['v1']
+  
+  #Delete other rows
+	temp.drop(['com', 'uid', 'i', 'v0', 'v1'], inplace=True)
+  
+  #rename "segments" column
+	temp.rename(columns={'segments':'Voltage [V]'}, inplace=True)
+  
+  #open data.json file
+	with open(folders[x] / "data.json", 'r') as f:				
+		data = json.load(f)
+    
+  #get voltage from data.json and write to temp DataFrame
+	temp.at[int(step), 'Voltage [V]'] = data['voltage']
+  
+  #append new row to DataFrame
+	values = pd.concat([values, temp])
+
+# Sort DataFrame
+values.sort_index(axis=0,kind='stable',inplace=True)
+
+# Rename DataFrame columns
+values.rename(columns={
+	'segment0' :  'D',
+	'segment1' :  'Rsh',
+	'segment2' :  'Bd',
+	'segment3' :  'Bsh',
+	'segment4' :  'Tsh',
+	'segment5' :  'Ts',
+	'segment6' :  'Ip',
+	'segment7' :  'Rs',
+  'segment8' :  'SC'
+  }, inplace=True)
+
+
+v = values['Voltage [V]'].to_numpy(dtype=float)
+Diode_volt_drop = values['D'].to_numpy(dtype=float)
+Rsh_volt_drop = values['Rsh'].to_numpy(dtype=float)
+block_diode_volt_drop = values['Bd'].to_numpy(dtype=float)
+Ts_volt_drop = values['Ts'].to_numpy(dtype=float)
+#Ts_volt_drop[Ts_volt_drop  == 0] = 0.0000001
+Ip_volt_drop = values['Ip'].to_numpy(dtype=float)
+block_shunt_volt_drop = values['Bsh'].to_numpy(dtype=float)
+block_shunt_volt_drop[block_shunt_volt_drop == 0] = np.nan
+Tsh_volt_drop = values['Tsh'].to_numpy(dtype=float)
+Rs_volt_drop = values['Rs'].to_numpy(dtype=float)
+Rs_volt_drop[Rs_volt_drop  == 0] = np.nan
+SC_volt_drop = values['SC'].to_numpy(dtype=float)
+
+
+
+'''''
+Fit voltage voltage drop data
+'''''
+
+Vbi_guess = 0.5
+diode_width_guess = 0.5
+
+Vo_guess = 1.5
+Ip_width_guess = 0.2
+Ip_n_guess = 1
+
+Vr_guess = 2			
+Rs_width_guess = 0.2
+Rs_n_guess = 1
+
+# Define Diode voltage drop function
+def Diode_func(x, Vbi_fit, diode_width):
+  return Vbi_fit*(1-np.exp(-x/diode_width))
+#  return x-diode_width*np.log(np.exp((x-Vbi_fit)/diode_width)+1)
+
+# Fit Diode voltage drop
+fit_diode_params, diode_pcov = curve_fit(Diode_func, 
+                                    v, 
+                                    Diode_volt_drop, 
+                                    p0=[Vbi_guess, diode_width_guess], 
+                                    method='lm')
+
+#standard deviation of errors
+perr_diode = np.sqrt(np.diag(diode_pcov))
+
+# Define Inj voltage drop function
+def Ip_func(x, Vo_fit, Ip_width, Ip_n):
+  return x-Ip_width*np.log(np.exp((x-Vo_fit)/Ip_n/Ip_width)+1)
+
+# Fit Inj voltage drop
+fit_Inj_params, Inj_pcov = curve_fit(Ip_func, 
+                                      v, 
+                                      Ip_volt_drop, 
+                                      p0=[ Vo_guess, 
+                                            Ip_width_guess,
+                                            Ip_n_guess], method='lm')
+    
+#standard deviation of errors
+perr_Inj = np.sqrt(np.diag(Inj_pcov))		  		 
+
+# Define Rs voltage drop function
+def VRs_func(x, Vr_fit, Rs_width, Rs_n):
+  return Rs_width*np.log(np.exp((x-Vr_fit)/Rs_n/Rs_width)+1)
+
+# Fit Rs voltage drop
+fit_Rs_params, Rs_pcov = curve_fit(VRs_func, 
+                              v, 
+                              Rs_volt_drop,
+                              p0=[Vr_guess, Rs_width_guess, Rs_n_guess], 
+                              method='lm')
+                            
+perr_Rs = np.sqrt(np.diag(Rs_pcov))	
+
+fit_params = np.concatenate((fit_diode_params, fit_Inj_params, fit_Rs_params))
+perr = np.concatenate((perr_diode, perr_Inj, perr_Rs))
+
+# Create DataFrame
+fit_results = pd.DataFrame(index = ['Vbi', 
+                                    'diode width', 
+                                    'Vo', 
+                                    'Ip_width', 
+                                    'Ip_n', 
+                                    'Vr', 
+                                    'Rs_width', 
+                                    'Rs_n'])
+fit_results['Value'] = fit_params
+#fit_results['Error'] = perr
+
+print(fit_results)
+
+Vbi_fit_result = fit_diode_params[0]
+Vo_fit_result = fit_Inj_params[0]
+Vr_fit_result = fit_Rs_params[0]
+
+  
+
+'''
+Read circuit element parameters from sim.oghma 
+'''
+
+# Create list of segments to search
+numbers = list(range(0,35))
+numbers_str = [str(numbers[i]) for i in range(len(numbers))]
+
+segment = []
+for i in range(len(numbers)):
+  segment.append("segment")
+  
+segments = [segment[i] + numbers_str[i] for i in range(len(segment))]
+
+# Open sim file
+myfile = open(files / 'sim.json')
+sim = json.load(myfile)
+circuit = sim["circuit"]
+circuit_diagram = circuit["circuit_diagram"]
+for i in range(len(segments)):
+  if circuit_diagram[segments[i]]['name'] == 'Jdiode':
+    Jo = circuit_diagram[segments[i]]['I0']
+    n = circuit_diagram[segments[i]]['nid']
+  if circuit_diagram[segments[i]]['name'] == 'block_diode':
+    JoBd = circuit_diagram[segments[i]]['I0']
+    bd = circuit_diagram[segments[i]]['c']
+    Bd_Vo = circuit_diagram[segments[i]]['a']
+    Bd_d = circuit_diagram[segments[i]]['b']
+  if circuit_diagram[segments[i]]['name'] == 'Rsh':
+    Rsh = circuit_diagram[segments[i]]['R']
+  if circuit_diagram[segments[i]]['name'] == 'shunt':
+    JoTsh = circuit_diagram[segments[i]]['I0']
+    tsh = circuit_diagram[segments[i]]['c']
+    Tsh_Vo = circuit_diagram[segments[i]]['a']
+    Tsh_d = circuit_diagram[segments[i]]['b']
+  if circuit_diagram[segments[i]]['name'] == 'block_shunt':
+    JoBsh = circuit_diagram[segments[i]]['I0']
+    bsh = circuit_diagram[segments[i]]['c']
+    Bsh_Vo = circuit_diagram[segments[i]]['a']
+    Bsh_d = circuit_diagram[segments[i]]['b']
+  if circuit_diagram[segments[i]]['name'] == 'series':
+    JoTs = circuit_diagram[segments[i]]['I0']
+    ts = circuit_diagram[segments[i]]['c']
+    Ts_Vo = circuit_diagram[segments[i]]['a']
+    Ts_d = circuit_diagram[segments[i]]['b']
+  if circuit_diagram[segments[i]]['name'] == 'Injection':
+    JoIp = circuit_diagram[segments[i]]['I0']
+    ip = circuit_diagram[segments[i]]['c']
+    Ip_Vo = circuit_diagram[segments[i]]['a']
+    Ip_d = circuit_diagram[segments[i]]['b']
+  if circuit_diagram[segments[i]]['name'] == 'SC':
+    JoSC = circuit_diagram[segments[i]]['I0']
+    sc = circuit_diagram[segments[i]]['c']
+    SC_Vo = circuit_diagram[segments[i]]['a']
+    SC_d = circuit_diagram[segments[i]]['b']
+  if circuit_diagram[segments[i]]['name'] == 'Rs':
+    Rs = circuit_diagram[segments[i]]['R']
+myfile.close()
+
+circuit_parameters = [Rs,
+                      JoSC,
+                      sc,
+                      JoTs,
+                      ts,
+                      JoIp,
+                      ip,
+                      JoBsh,
+                      bsh,
+                      JoTsh,
+                      tsh,
+                      JoBd,
+                      bd,
+                      Jo,
+                      n,
+                      Rsh
+]
+
+circuit_parameters_index = ['Rs',
+                            'JoSC',
+                            'sc',
+                            'JoTs',
+                            'ts',
+                            'JoIp',
+                            'ip',
+                            'JoBsh',
+                            'bsh',
+                            'JoTsh',
+                            'tsh',
+                            'JoBd',
+                            'bd',
+                            'Jo',
+                            'n',
+                            'Rsh'
+]
+
+circuit_parameters_table = pd.DataFrame(data = circuit_parameters,
+                                        index = circuit_parameters_index)
+
+print(circuit_parameters_table)
+
+
+"""
+Circuit functions - circuit elements
+"""
+
+
+
+Vbi = Tsh_Vo
+Vo = Ip_Vo
+
+# Ohmic shunt and dc offset
+def Rshunt(Rsh):
+    return Rsh_volt_drop/Rsh/A
+
+#Ohmic series
+def Rseries(Rs):
+    return Rs_volt_drop/Rs/A
+
+# ideal diode
+def Diode(Jo, 
+          n
+        ):
+    return Jo*(np.exp(Diode_volt_drop/n/k/T)-1)/A
+
+# effect of blocking layer on ideal diode
+def block_Diode(JoBd, 
+                bd
+              ):
+  return np.power(JoBd*block_diode_volt_drop/Bd_d, bd)/A
+
+#space charge transport (shunt)
+def Tshunt(JoTsh, 
+            tsh, 
+            Vbi):
+    return np.power(JoTsh*Tsh_volt_drop/(Vbi+Tsh_d), tsh)/A
+
+#effect of blocking layer on transport (shunt)
+def block_Tshunt(JoBsh, 
+                bsh, 
+                Vbi):
+    return np.power(JoBsh*block_shunt_volt_drop/(Vbi+Bsh_d), bsh)/A
+
+#Injection from p-type electrode
+def Inj_p(JoIp, 
+          ip, 
+          Vo):
+    return np.power(JoIp*Ip_volt_drop/(Vo+Ip_d), ip)/A
+
+#space charge transport (series)
+def Tseries(JoTs, 
+            ts, 
+            Vo):
+    return np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A
+
+#space charge transport (series)
+def SC(JoSC, 
+            sc, 
+            Vo):
+    return np.power(JoSC*SC_volt_drop/(Vo+SC_d), sc)/A
+
+
+
+
+
+"""
+Analytical circuit solutions
+"""
+
+def Rseries_fit(v,
+                Rs,
+                *fit_Rs_params):
+  return VRs_func(v, *fit_Rs_params)/Rs/A
+
+if show_circuit_legs > 3:
+  def Jdark(Rsh, 
+            Jo, 
+            n, 
+            JoTsh, 
+            tsh, 
+            JoIp, 
+            ip, 
+            Vbi, 
+            Vo):
+      return (Diode(Jo, n) 
+                  + Tshunt(JoTsh, tsh, Vbi) 
+                  + Inj_p(JoIp, ip, Vo) 
+                  + Rshunt(Rsh)
+                  )
+elif show_circuit_legs == 3:
+    def Jdark(Rsh, 
+            Jo, 
+            n, 
+            JoTsh, 
+            tsh, 
+            JoIp, 
+            ip, 
+            Vbi, 
+            Vo):
+      return (Diode(Jo, n) 
+                  + Tshunt(JoTsh, tsh, Vbi)  
+                  + Rshunt(Rsh)
+                  )
+elif show_circuit_legs == 2:
+    def Jdark(Rsh, 
+            Jo, 
+            n, 
+            JoTsh, 
+            tsh, 
+            JoIp, 
+            ip, 
+            Vbi, 
+            Vo):
+      return (Diode(Jo, n) 
+                  + Rshunt(Rsh)
+                  )
+elif show_circuit_legs == 1:
+    def Jdark(Rsh, 
+            Jo, 
+            n, 
+            JoTsh, 
+            tsh, 
+            JoIp, 
+            ip, 
+            Vbi, 
+            Vo):
+      return (Rshunt(Rsh)
+                  )
+
+            
+def Jdark_slope(Rsh, 
+          Jo, 
+          n, 
+          JoTsh, 
+          tsh, 
+          JoIp,
+          ip,
+          Vbi, 
+          Vo):
+    return np.gradient(np.log10(Jdark(Rsh, 
+                                      Jo, 
+                                      n, 
+                                      JoTsh, 
+                                      tsh, 
+                                      JoIp, 
+                                      ip, 
+                                      Vbi, 
+                                      Vo)), np.log10(v))
+                                      
+def Jdark_curvature(Rsh, 
+                    Jo, 
+                    n, 
+                    JoTsh, 
+                    tsh, 
+                    JoIp, 
+                    ip, 
+                    Vbi, 
+                    Vo):
+  return np.gradient(Jdark_slope(Rsh, 
+                                Jo, 
+                                n, 
+                                JoTsh, 
+                                tsh, 
+                                JoIp,
+                                ip,
+                                Vbi, 
+                                Vo), np.log10(v))
+
+
+
+'''
+Save fit curves
+'''
+
+if save_fit_branches == True:
+  
+  fit_legs = pd.DataFrame()
+  fit_legs['Voltage [V]'] = v
+  fit_legs['Injection [A/m^2]'] = Inj_p(JoIp, ip, Vo)
+  
+  # path of new folder for results
+  #folderpath = files.parent / (files.stem + ' results')
+  
+  # make new folder
+  #folderpath.mkdir(parents=True,exist_ok=True)
+  
+  # save curve
+  fit_legs.to_csv(files/'Fit legs.txt',sep='\t', index=False)
+  
+  print('Results Saved')
+  
+  
+
+
+
+'''''
+Find slopes and curvatures
+'''''
+
+jv_spline = UnivariateSpline(v_data, j_data, k=3, s=0)
+
+# Find slopes
+jv_slope = np.gradient(np.log10(j_data), np.log10(v_data), edge_order=2)
+Diode_slope = np.gradient(np.log10(Diode(Jo, n)), np.log10(v), edge_order=2)
+Tshunt_slope = np.gradient(np.log10(Tshunt(JoTsh, tsh, Vbi)), np.log10(v), edge_order=2)
+Inj_slope = np.gradient(np.log10(Inj_p(JoIp, ip, Vo)), np.log10(v), edge_order=2)
+Tseries_slope = np.gradient(np.log10(Tseries(JoTs, ts, Vo)), np.log10(v), edge_order=2)
+SC_slope = np.gradient(np.log10(SC(JoSC, sc, Vo)), np.log10(v), edge_order=2)
+Rseries_fit_slope = np.gradient(np.log10(Rseries_fit(v, Rs, *fit_Rs_params)), np.log10(v), edge_order=2)
+
+jv_slope_spline = UnivariateSpline(v_data, jv_slope, k=5, s=slope_smoothing)
+#jv_spline_gradient = np.gradient(np.log10(jv_spline(v_data)), np.log10(v_data), edge_order=0)
+
+# Find curvatures
+jv_curvature = np.gradient(jv_slope, np.log10(v_data), edge_order=2)
+jv_curvature_spline = np.gradient(jv_slope_spline(v_data), np.log10(v_data), edge_order=2)
+#jv_spline_gradient2 = np.gradient(jv_spline_gradient, np.log10(v_data), edge_order=2)
+Diode_curvature = np.gradient(Diode_slope, np.log10(v), edge_order=2)
+Tshunt_curvature = np.gradient(Tshunt_slope, np.log10(v), edge_order=2)
+Inj_curvature = np.gradient(Inj_slope, np.log10(v), edge_order=2)
+Tseries_curvature = np.gradient(Tseries_slope, np.log10(v), edge_order=2)
+SC_curvature = np.gradient(SC_slope, np.log10(v), edge_order=2)
+Rseries_fit_curvature = np.gradient(Rseries_fit_slope, np.log10(v), edge_order=2)
+
+# Get splines of slopes
+
+#tck = splrep(v_data, jv_slope, s=2)
+#jv_slope_spline = BSpline(*tck)(v_data)
+#jv_slope_spline = Akima1DInterpolator(v_data, jv_slope)
+
+#jv_curvature_spline = UnivariateSpline(v_data, jv_curvature, k=5, s=5000)
+
+
+
+
+"""
+Plotting
+"""
+
+# Create figure
+if black_background == True:
+  plt.style.use('dark_background')							#black background
+
+if plot_slopes == True:
+  fig, (axs0, axs1, axs2)   = plt.subplots(3, 1, sharex=True, figsize=(plot_width, plot_height), dpi=dpi)
+  
+  #adjust plot margins
+  fig.subplots_adjust(top=0.995, right=0.99, bottom=0.055, left=0.11, hspace=0)
+  
+else:
+  fig, axs0 = plt.subplots(1, 1, sharex=True, figsize=(plot_width, plot_height), dpi=dpi, layout='constrained')
+
+fig.canvas.manager.set_window_title(files.name) 
+
+# Set up iv plot
+axs0.set_ylabel("Current density [A/m$^2$]")
+axs0.set_xscale("log")
+axs0.set_yscale("log")
+
+if plot_slopes == False:
+  axs0.set_xlabel("Voltage [V]")  
+
+# Add raw data to iv plot
+axs0.plot(v_data, j_data, linewidth=0, color=point_color, marker='o', markersize=1)
+
+# Add fit (sum of legs)
+Jdark_line, = axs0.plot(v, 
+                            Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo),
+                              linewidth=linewidth, c=fit_color, label='Fit')
+axs0.fill_between(v, 
+                  j_data.min()*0.1, 
+                  Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo),  
+                  color='yellow', 
+                  alpha = fill_under_curve)
+
+# Add spline
+axs0.plot(v_data, jv_spline(v_data), linewidth=linewidth, color=data_color)
+
+# set axis limits
+axs0.set_ylim(			
+                j_data.min()*0.1,			# grab min from data
+                j_data.max()*2				# grab max from data
+)
+
+if write_model_version == True:
+  
+  #text box for model version
+  axs0.text(0.8, 0.06, model_version, transform=axs0.transAxes)		
+
+if write_parameter_values == True:
+  
+  # remove column names from string
+  circuit_parameters_table_temp = circuit_parameters_table.to_string()
+  rows = circuit_parameters_table_temp.split('\n')
+  rows.pop(0)
+  circuit_parameters_table_string = '\n'.join(rows)
+  
+  # Add table of circuit parameters to plot
+  axs0.text(0.02, 0.025, 
+              circuit_parameters_table_string,   
+              transform=axs0.transAxes, ha='left')
+
+
+'''''
+Prepare slope plot
+'''''
+  
+if plot_slopes == True:
+
+  # Set up slope plot
+  #axs1.set_xlabel("Voltage [V]")
+  axs1.set_ylabel("Slope of log-log j-v curve")
+  #axs1.set_yscale("log")
+  
+  
+  # set axis limits
+  
+  # Find index above Vbi
+  nearest_Vbi_index = min(range(len(v_data)), key=lambda i: abs(v_data[i] - Vbi))
+  
+  # Find max/min values only above Vbi
+  axs1.set_ylim(			
+                0.9,
+                1.15*np.nanmax(jv_slope[nearest_Vbi_index :])  
+  )
+  
+  axs2.set_ylim(
+                  1.15*np.nanmin(jv_curvature[nearest_Vbi_index :]),
+                  1.15*np.nanmax(jv_curvature[nearest_Vbi_index :])  
+  )
+  
+  # Add gradient of raw data to slope plot
+  axs1.plot(v_data, jv_slope, linewidth=0, color=point_color, marker='o', markersize=1)
+  
+  # Add fit to slope plot
+  axs1.plot(v, 
+              Jdark_slope(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), 
+              linewidth=linewidth, c=fit_color, label='Fit')
+  
+  # Add spline to slope plot
+  axs1.plot(v_data, jv_slope_spline(v_data), linewidth=linewidth, color=data_color)
+  #axs1.plot(v_data, jv_spline_gradient, linewidth=linewidth, color='orange')
+  
+  
+  # Prepare curvature plot
+  
+  # Set up curvature plot
+  axs2.set_xlabel("Voltage [V]")
+  axs2.set_ylabel("Curvature of log-log j-v curve")
+  
+  # Add gradient of raw data to curvature plot as points
+  axs2.plot(v_data, jv_curvature, linewidth=0, color=point_color, marker='o', markersize=1)
+  
+  # Add fit to curvature plot
+  axs2.plot(v,
+            Jdark_curvature(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), 
+            linewidth=linewidth, c=fit_color, label='Fit')
+  
+  # Add data to curvature plot
+  axs2.plot(v_data, jv_curvature_spline, linewidth=linewidth, color=data_color)
+  #axs2.plot(v_data, jv_spline_gradient2, linewidth=linewidth, color='orange')
+  
+  
+  if write_parameter_values == True:
+    
+    # remove column names from string
+    fit_results_string_temp = fit_results.to_string()
+    rows = fit_results_string_temp.split('\n')
+    rows.pop(0)
+    fit_results_string = '\n'.join(rows)
+    
+    # Add table of votages to plot
+    axs1.text(0.02, -0.5, 
+                fit_results_string,   
+                transform=axs0.transAxes, ha='left')
+   
+    
+'''''
+Add voltage points to plot
+'''''
+    
+if (plot_Vbi_point == True or 
+    plot_Vo_point == True or
+    plot_Vr_point == True):
+
+  # Interpolate
+  fint_Jdark = interpolate.interp1d(v, Jdark(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
+  
+  # Plot points
+  if plot_Vbi_point == True:
+    axs0.plot(Vbi_fit_result, fint_Jdark(Vbi_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+    Vbi_text = axs0.text(Vbi_fit_result*np.power(10,-0.01), 
+                          fint_Jdark(Vbi_fit_result)*np.power(10, plot_height/30), '$V_{bi}$', ha='right')
+  if plot_Vo_point == True:
+    axs0.plot(Vo_fit_result, fint_Jdark(Vo_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+    Vo_text = axs0.text(Vo_fit_result*np.power(10,-0.01), 
+                        fint_Jdark(Vo_fit_result)*np.power(10, plot_height/30), '$V_{0}$', ha='right')
+  if plot_Vr_point == True:
+    axs0.plot(Vr_fit_result, fint_Jdark(Vr_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+    Vr_text = axs0.text(Vr_fit_result*np.power(10,-0.01), 
+                        fint_Jdark(Vr_fit_result)*np.power(10, plot_height/30), '$V_{r}$', ha='right')
+    
+  if plot_slopes == True:
+    
+    # Interpolate slope
+    fint_Jdark_slope = interpolate.interp1d(v, Jdark_slope(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
+    
+    # Plot slope points
+    if plot_Vbi_point == True:
+      axs1.plot(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      Vbi_text = axs1.text(Vbi_fit_result*np.power(10,-0.02), 
+                          fint_Jdark_slope(Vbi_fit_result) + plot_height/30, '$V_{bi}$', ha='right')
+    if plot_Vo_point == True:
+      axs1.plot(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      Vo_text = axs1.text(Vo_fit_result*np.power(10,0.02), 
+                          fint_Jdark_slope(Vo_fit_result) + plot_height/30, '$V_{0}$', ha='left')
+    if plot_Vr_point == True:
+      axs1.plot(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      Vr_text = axs1.text(Vr_fit_result*np.power(10,0.02), 
+                          fint_Jdark_slope(Vr_fit_result) + plot_height/30, '$V_{r}$', ha='left')
+      
+    # Interpolate curvature
+    fint_Jdark_curvature = interpolate.interp1d(v, Jdark_curvature(Rsh, Jo, n, JoTsh, tsh, JoIp, ip, Vbi, Vo), kind = 'linear')
+    
+    # Plot points
+    if plot_Vbi_point == True:
+      axs2.plot(Vbi_fit_result, fint_Jdark_curvature(Vbi_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      Vbi_text = axs2.text(Vbi_fit_result*np.power(10,-0.02), 
+                          fint_Jdark_curvature(Vbi_fit_result) + plot_height/30, '$V_{bi}$', ha='right')
+    if plot_Vo_point == True:
+      axs2.plot(Vo_fit_result, fint_Jdark_curvature(Vo_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      Vo_text = axs2.text(Vo_fit_result*np.power(10,0.02), 
+                          fint_Jdark_curvature(Vo_fit_result) + plot_height/30, '$V_{0}$', ha='left')
+    if plot_Vr_point == True:
+      axs2.plot(Vr_fit_result, fint_Jdark_curvature(Vr_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      Vr_text = axs2.text(Vr_fit_result*np.power(10,0.02), 
+                          fint_Jdark_curvature(Vr_fit_result) + plot_height/30, '$V_{r}$', ha='left')
+    
+
+
+
+# Add individual circuit elements to iv plot
+
+if show_circuit_legs > 0:
+  Rshunt_line, = axs0.plot(v, 
+    Rshunt(Rsh), 
+    color=elements_line_color, linewidth=linewidth/1.5, linestyle='dotted')
+  if show_circuit_legs > 1:
+    axs0.plot(v, 
+      Diode(Jo, n), 
+      color=elements_line_color, linewidth=linewidth/1.5, linestyle='dashed')
+    if show_circuit_legs > 2:
+      axs0.plot(v, 
+        Tshunt(JoTsh, tsh, Vbi), 
+        color=elements_line_color, linewidth=linewidth/1.5, linestyle=(0,(1,1)))
+      if show_circuit_legs > 3:
+        axs0.plot(v, 
+          Inj_p(JoIp, ip, Vo), 
+          color=elements_line_color, linewidth=linewidth/1.5, linestyle='dashdot')
+        if show_circuit_legs > 4:
+          axs0.plot(v, 
+            Tseries(JoTs, ts, Vo), 
+            color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot')
+          axs0.plot(v, 
+            SC(JoSC, sc, Vo), 
+            color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot')
+
+
+#Rseries_line, = axs0.plot(v,
+#  Rseries_fit(v, Rs, *fit_Rs_params), 
+#  color=line_color, linewidth=1, linestyle='dashed')
+
+
+                  
+
+# Add individual circuit elements to slope plot
+if plot_slopes == True:
+  
+  axs1.plot(v, 
+      Diode_slope, 
+      color=elements_line_color, linewidth=linewidth/1.5, linestyle='dashed')
+    
+  axs1.plot(v, 
+      Tshunt_slope, 
+      color=elements_line_color, linewidth=linewidth/1.5, linestyle=(0,(1,1)))
+    
+  axs1.plot(v, 
+        Inj_slope, 
+        color=elements_line_color, linewidth=linewidth/1.5, linestyle='dashdot')  
+      
+  axs1.plot(v, 
+        Tseries_slope, 
+        color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot') 
+      
+  axs1.plot(v, 
+        SC_slope, 
+        color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot') 
+
+#  axs1.plot(v, 
+#        Rseries_fit_slope, 
+#        color=line_color, linewidth=linewidth, linestyle='dashed') 
+
+
+            
+
+          
+# axs2.plot(v, 
+#     Diode_curvature, 
+#     color=line_color, linewidth=linewidth, linestyle='dashed')
+# 
+# axs2.plot(v, 
+#     Tshunt_curvature, 
+#     color=line_color, linewidth=linewidth, linestyle=(0,(1,1)))
+# 
+# axs2.plot(v, 
+#       Inj_curvature, 
+#       color=line_color, linewidth=linewidth, linestyle='dashdot')  
+# 
+# axs2.plot(v, 
+#       Tseries_curvature, 
+#       color=line_color, linewidth=linewidth/2, linestyle='dashdot') 
+# 
+# axs2.plot(v, 
+#       SC_curvature, 
+#       color=line_color, linewidth=linewidth/2, linestyle='dashdot') 
+# 
+# axs2.plot(v, 
+#       Rseries_fit_curvature, 
+#       color=line_color, linewidth=linewidth, linestyle='dashed') 
+          
+
+          
+
+
+
+'''
+Plot voltage drops
+'''
+
+if plot_voltage_curves == True:
+
+  # Create scatter plot
+  if black_background == True:
+    plt.style.use('dark_background')							#black background
+  fig2, ax = plt.subplots(dpi=dpi, layout='constrained')
+  fig2.canvas.manager.set_window_title('Voltage drops') 
+
+  # Add DataFrame data to plot
+  for x in range(1,9):
+    plt.plot(values[values.columns[0]].to_numpy(), values[values.columns[x]].to_numpy())
+
+  # Add labels
+  # last voltage value
+  label_x = values[values.columns[0]].iat[-1] 
+  y_offset = 0.06
+
+  # label y values
+  ax.text(label_x, values[values.columns[1]].iat[-1], values.columns[1]) 
+  ax.text(label_x, values[values.columns[2]].iat[-1], values.columns[2]) 
+  ax.text(label_x, values[values.columns[3]].iat[-1] - y_offset, values.columns[3]) 
+  ax.text(label_x, values[values.columns[4]].iat[-1], values.columns[4]) 
+  ax.text(label_x, values[values.columns[5]].iat[-1], values.columns[5]) 
+  ax.text(label_x, values[values.columns[6]].iat[-1] - y_offset, values.columns[6]) 
+  ax.text(label_x, values[values.columns[7]].iat[-1], values.columns[7]) 
+  ax.text(label_x, values[values.columns[8]].iat[-1], values.columns[8]) 
+
+  # Add fits to plot
+  ax.plot(v, VRs_func(v, *fit_Rs_params), color=line_color, linestyle='dashed')
+  ax.plot(Vr_fit_result, VRs_func(Vr_fit_result, *fit_Rs_params), marker='+', markersize=10)
+  ax.text(Vr_fit_result-0.01, 
+           VRs_func(Vr_fit_result, *fit_Rs_params)+0.05, '$V_{r}$', ha='right')
+  ax.plot(v, Ip_func(v, *fit_Inj_params), color=line_color, linestyle='dashed')
+  ax.plot(Vo_fit_result, Ip_func(Vo_fit_result, *fit_Inj_params), marker='+', markersize=10)
+  ax.text(Vo_fit_result-0.01, 
+           Ip_func(Vo_fit_result, *fit_Inj_params)+0.05, '$V_{0}$', ha='right')
+  ax.plot(v, Diode_func(v, *fit_diode_params), color=line_color, linestyle='dashed')
+  ax.plot(Vbi_fit_result, Diode_func(Vbi_fit_result, *fit_diode_params), marker='+', markersize=10)
+  ax.text(Vbi_fit_result-0.01, 
+           Diode_func(Vbi_fit_result, *fit_diode_params)+0.05, '$V_{bi}$', ha='right')
+
+
+
+
+
+'''
+Plot effective voltage
+'''
+  
+# Define fit functions
+def fit_Ts_eff(x, JoTs_eff, ts_eff):
+  return JoTs_eff*np.power(x, ts_eff)
+
+def fit_Tsh_eff(x, JoTsh_eff, tsh_eff):
+  return JoTsh_eff*np.power(x, tsh_eff)
+
+# Definecurves
+fit_Ts_eff_params, pcov = curve_fit(fit_Ts_eff, 
+          Ts_volt_drop, 
+          np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A,
+          p0=[1e6,5],
+          method='lm'
+          )
+
+fit_Tsh_eff_params, pcov = curve_fit(fit_Tsh_eff, 
+          Tsh_volt_drop, 
+          np.power(JoTsh*Tsh_volt_drop/(Vo+Tsh_d), tsh)/A,
+          p0=[1,10],
+          method='lm'
+          )
+
+
+if plot_effective_voltage == True:
+
+  # Create scatter plot
+  if black_background == True:
+    plt.style.use('dark_background')							#black background
+  fig3, ax = plt.subplots(dpi=dpi, layout='constrained')
+  fig3.canvas.manager.set_window_title('Effective voltage') 
+
+  # Set up iv plot
+  ax.set_ylabel("Current density [A/m$^2$]")
+  ax.set_xlabel("Effective voltage [V]")
+  ax.set_xscale("log")
+  ax.set_yscale("log")
+  ax.set_xlim(xmin=0.001)
+  ax.set_ylim(ymin=0.00001, 
+              ymax=3*np.power(JoTs*Ts_volt_drop[-1]/(Vo+Ts_d), ts)/A)
+
+
+
+  # Plot Ts
+  ax.plot(Ts_volt_drop, 
+          np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A, 
+          color='cyan')
+  ax.text(Ts_volt_drop[-1],
+          np.power(JoTs*Ts_volt_drop[-1]/(Vo+Ts_d), ts)/A,
+          'Ts_eff', ha='left')
+  ax.plot(v, 
+          np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A, 
+          color='cyan')
+  ax.text(v[-1],
+        np.power(JoTs*Ts_volt_drop[-1]/(Vo+Ts_d), ts)/A,
+        'Ts', ha='left')
+
+  # Plot Tsh
+  ax.plot(Tsh_volt_drop, 
+          np.power(JoTsh*Tsh_volt_drop/(Vo+Tsh_d), tsh)/A, 
+          color='red')
+  ax.text(Tsh_volt_drop[-1],
+          np.power(JoTsh*Tsh_volt_drop[-1]/(Vo+Ts_d), tsh)/A,
+          'Tsh_eff', ha='left')
+  ax.plot(v, 
+          np.power(JoTsh*Tsh_volt_drop/(Vo+Tsh_d), tsh)/A, 
+          color='red')
+  ax.text(v[-1],
+          np.power(JoTsh*Tsh_volt_drop[-1]/(Vo+Ts_d), tsh)/A,
+          'Tsh', ha='left')
+
+
+
+  # Plot fit
+  ax.plot(Ts_volt_drop, 
+          fit_Ts_eff(Ts_volt_drop, *fit_Ts_eff_params), linestyle="dashed",
+          color=line_color)
+
+  ax.plot(Tsh_volt_drop, 
+          fit_Tsh_eff(Tsh_volt_drop, *fit_Tsh_eff_params), linestyle="dashed",
+          color=line_color)
+
+# Create DataFrame
+fit_eff_params = np.concatenate((fit_Tsh_eff_params, fit_Ts_eff_params))
+fit_eff_results = pd.DataFrame(index = ['JoTsh_eff', 'tsh_eff', 'JoTs_eff', 'ts_eff'])
+fit_eff_results['Value'] = fit_eff_params
+
+if write_parameter_values == True and plot_effective_voltage == True:
+  
+  # Add table of parameters to plot
+  ax.text(0.02, 0.75, 
+              fit_eff_results.to_string(),   
+              transform=ax.transAxes, ha='left')
+
+print(fit_eff_results)
+
+
+plt.show()
