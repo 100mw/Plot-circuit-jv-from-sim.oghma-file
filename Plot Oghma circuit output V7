@@ -15,11 +15,13 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy import interpolate
 from scipy.interpolate import UnivariateSpline
+from scipy.interpolate import LSQUnivariateSpline
+from scipy.signal import savgol_filter
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 
 files = Path(
-  "/Users/alexiarango/Documents/Oghma/Circuit V13-3/circuit_v13-3 c60 40nm d14 up/"
+  "/Users/alexiarango/Documents/Oghma/Circuit V13-3/circuit_v13-3 c60 30nm d10 up/"
 )
 
 ## Windows:
@@ -39,7 +41,8 @@ T = 300					          # temperature
 Set plotting attributes
 '''
 
-slope_smoothing = 0.3
+slope_smoothing = 3
+curvature_smoothing = 5
 
 black_background = True
 dpi=170
@@ -541,24 +544,49 @@ if save_fit_branches == True:
 Find slopes and curvatures
 '''''
 
-jv_spline = UnivariateSpline(v_data, j_data, k=3, s=0)
+# Create an array of knots for slope spline
+knots = np.logspace(np.log10(v_data.min()), 
+                    np.log10(v_data.max()), 
+                    int(v_data.size/slope_smoothing))
+                  
+# Create an array of knots for curvature spline
+knots = np.logspace(np.log10(v_data.min()), 
+                    np.log10(v_data.max()), 
+                    int(v_data.size/curvature_smoothing))
+
+# Delete boundary knots
+knots = np.delete(knots, [0,-1])
+
+# Take spline of current
+jv_spline = LSQUnivariateSpline(v_data, j_data, k=5, t=knots)
 
 # Find slopes
-jv_slope = np.gradient(np.log10(j_data), np.log10(v_data), edge_order=2)
-Diode_slope = np.gradient(np.log10(Diode(Jo, n)), np.log10(v), edge_order=2)
-Tshunt_slope = np.gradient(np.log10(Tshunt(JoTsh, tsh, Vbi)), np.log10(v), edge_order=2)
-Inj_slope = np.gradient(np.log10(Inj_p(JoIp, ip, Vo)), np.log10(v), edge_order=2)
-Tseries_slope = np.gradient(np.log10(Tseries(JoTs, ts, Vo)), np.log10(v), edge_order=2)
-SC_slope = np.gradient(np.log10(SC(JoSC, sc, Vo)), np.log10(v), edge_order=2)
-Rseries_fit_slope = np.gradient(np.log10(Rseries_fit(v, Rs, *fit_Rs_params)), np.log10(v), edge_order=2)
+jv_slope = np.gradient(np.log10(j_data), 
+                       np.log10(v_data), edge_order=2)
+                      
+Diode_slope = np.gradient(np.log10(Diode(Jo, n)), 
+                          np.log10(v), edge_order=2)
+                        
+Tshunt_slope = np.gradient(np.log10(Tshunt(JoTsh, tsh, Vbi)), 
+                           np.log10(v), edge_order=2)
+                          
+Inj_slope = np.gradient(np.log10(Inj_p(JoIp, ip, Vo)), 
+                        np.log10(v), edge_order=2)
+                      
+Tseries_slope = np.gradient(np.log10(Tseries(JoTs, ts, Vo)), 
+                            np.log10(v), edge_order=2)
+                          
+SC_slope = np.gradient(np.log10(SC(JoSC, sc, Vo)), 
+                       np.log10(v), edge_order=2)
+                      
+Rseries_fit_slope = np.gradient(np.log10(Rseries_fit(v, Rs, *fit_Rs_params)), 
+                                np.log10(v), edge_order=2)
 
-jv_slope_spline = UnivariateSpline(v_data, jv_slope, k=5, s=slope_smoothing)
-#jv_spline_gradient = np.gradient(np.log10(jv_spline(v_data)), np.log10(v_data), edge_order=0)
+# Take spline of slope
+jv_slope_spline = LSQUnivariateSpline(v_data, jv_slope, k=5, t=knots)
 
 # Find curvatures
 jv_curvature = np.gradient(jv_slope, np.log10(v_data), edge_order=2)
-jv_curvature_spline = np.gradient(jv_slope_spline(v_data), np.log10(v_data), edge_order=2)
-#jv_spline_gradient2 = np.gradient(jv_spline_gradient, np.log10(v_data), edge_order=2)
 Diode_curvature = np.gradient(Diode_slope, np.log10(v), edge_order=2)
 Tshunt_curvature = np.gradient(Tshunt_slope, np.log10(v), edge_order=2)
 Inj_curvature = np.gradient(Inj_slope, np.log10(v), edge_order=2)
@@ -566,13 +594,8 @@ Tseries_curvature = np.gradient(Tseries_slope, np.log10(v), edge_order=2)
 SC_curvature = np.gradient(SC_slope, np.log10(v), edge_order=2)
 Rseries_fit_curvature = np.gradient(Rseries_fit_slope, np.log10(v), edge_order=2)
 
-# Get splines of slopes
-
-#tck = splrep(v_data, jv_slope, s=2)
-#jv_slope_spline = BSpline(*tck)(v_data)
-#jv_slope_spline = Akima1DInterpolator(v_data, jv_slope)
-
-#jv_curvature_spline = UnivariateSpline(v_data, jv_curvature, k=5, s=5000)
+# Take spline of curvature
+jv_curvature_spline = LSQUnivariateSpline(v_data, jv_curvature, k=5, t=knots)
 
 
 
@@ -683,9 +706,7 @@ if plot_slopes == True:
   
   # Add spline to slope plot
   axs1.plot(v_data, jv_slope_spline(v_data), linewidth=linewidth, color=data_color)
-  #axs1.plot(v_data, jv_spline_gradient, linewidth=linewidth, color='orange')
-  
-  
+    
   # Prepare curvature plot
   
   # Set up curvature plot
@@ -701,7 +722,7 @@ if plot_slopes == True:
             linewidth=linewidth, c=fit_color, label='Fit')
   
   # Add data to curvature plot
-  axs2.plot(v_data, jv_curvature_spline, linewidth=linewidth, color=data_color)
+  axs2.plot(v_data, jv_curvature_spline(v_data), linewidth=linewidth, color=data_color)
   #axs2.plot(v_data, jv_spline_gradient2, linewidth=linewidth, color='orange')
   
   
@@ -804,7 +825,7 @@ if show_circuit_legs > 0:
         if show_circuit_legs > 4:
           axs0.plot(v, 
             Tseries(JoTs, ts, Vo), 
-            color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot')
+            color=elements_line_color, linewidth=linewidth/2)
           axs0.plot(v, 
             SC(JoSC, sc, Vo), 
             color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot')
