@@ -14,14 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy import interpolate
-from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import LSQUnivariateSpline
-from scipy.signal import savgol_filter
+import re
+
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 
 files = Path(
-  "/Users/alexiarango/Documents/Oghma/Circuit V13-3/circuit_v13-3 c60 30nm d10 up/"
+  "/Users/alexiarango/Documents/Oghma/Circuit V13-3/circuit_v13-3 c60 60nm d14 up/"
 )
 
 ## Windows:
@@ -35,14 +35,16 @@ files = Path(
 A = 0.00000121	          # device area
 k = 8.617333262e-5		    # Boltzmann constant
 T = 300					          # temperature
+epsilon0 = 8.854e-12      # permitivity of free space in F/m
+epsilon = 2.3             # dielectric constant of C60
 
 
 '''
 Set plotting attributes
 '''
 
-slope_smoothing = 3
-curvature_smoothing = 5
+slope_smoothing = 1.5
+curvature_smoothing = 3
 
 black_background = True
 dpi=170
@@ -54,8 +56,8 @@ elements_line_color = 'gray'
 linewidth = 1
 
 plot_slopes = True
-plot_voltage_curves = False
-plot_effective_voltage = False
+plot_voltage_curves = True
+plot_effective_voltage = True
 
 write_model_version = True
 write_parameter_values = True
@@ -81,9 +83,14 @@ Open raw data file
 
 data_raw = pd.read_csv(files / "fit_data0.inp", sep="\t", skiprows=1, header=None)
 data_raw = data_raw.loc[(data_raw!=0).any(axis=1)]
-#print(data_raw)
 v_data = data_raw[data_raw.columns[0]].to_numpy()
 j_data = data_raw[data_raw.columns[1]].to_numpy()
+
+# Eliminate first data point if errant
+if v_data[0] < 1e-10:
+  v_data = np.delete(v_data, [0])
+  j_data = np.delete(j_data, [0])
+  
 
 
 ''''
@@ -157,7 +164,7 @@ Ts_volt_drop = values['Ts'].to_numpy(dtype=float)
 #Ts_volt_drop[Ts_volt_drop  == 0] = 0.0000001
 Ip_volt_drop = values['Ip'].to_numpy(dtype=float)
 block_shunt_volt_drop = values['Bsh'].to_numpy(dtype=float)
-block_shunt_volt_drop[block_shunt_volt_drop == 0] = np.nan
+#block_shunt_volt_drop[block_shunt_volt_drop == 0] = np.nan
 Tsh_volt_drop = values['Tsh'].to_numpy(dtype=float)
 Rs_volt_drop = values['Rs'].to_numpy(dtype=float)
 Rs_volt_drop[Rs_volt_drop  == 0] = np.nan
@@ -182,8 +189,8 @@ Rs_n_guess = 1
 
 # Define Diode voltage drop function
 def Diode_func(x, Vbi_fit, diode_width):
-  return Vbi_fit*(1-np.exp(-x/diode_width))
-#  return x-diode_width*np.log(np.exp((x-Vbi_fit)/diode_width)+1)
+#  return Vbi_fit*(1-np.exp(-x/diode_width))
+  return x-diode_width*np.log(np.exp((x-Vbi_fit)/diode_width)+1)
 
 # Fit Diode voltage drop
 fit_diode_params, diode_pcov = curve_fit(Diode_func, 
@@ -344,14 +351,15 @@ circuit_parameters_index = ['Rs',
 circuit_parameters_table = pd.DataFrame(data = circuit_parameters,
                                         index = circuit_parameters_index)
 
+# Display DataFrames as decimals or scientific notation
+pd.options.display.float_format = '{:.3g}'.format
+
 print(circuit_parameters_table)
 
 
 """
 Circuit functions - circuit elements
 """
-
-
 
 Vbi = Tsh_Vo
 Vo = Ip_Vo
@@ -366,14 +374,12 @@ def Rseries(Rs):
 
 # ideal diode
 def Diode(Jo, 
-          n
-        ):
+          n):
     return Jo*(np.exp(Diode_volt_drop/n/k/T)-1)/A
 
 # effect of blocking layer on ideal diode
 def block_Diode(JoBd, 
-                bd
-              ):
+                bd):
   return np.power(JoBd*block_diode_volt_drop/Bd_d, bd)/A
 
 #space charge transport (shunt)
@@ -525,12 +531,6 @@ if save_fit_branches == True:
   fit_legs['Voltage [V]'] = v
   fit_legs['Injection [A/m^2]'] = Inj_p(JoIp, ip, Vo)
   
-  # path of new folder for results
-  #folderpath = files.parent / (files.stem + ' results')
-  
-  # make new folder
-  #folderpath.mkdir(parents=True,exist_ok=True)
-  
   # save curve
   fit_legs.to_csv(files/'Fit legs.txt',sep='\t', index=False)
   
@@ -544,21 +544,37 @@ if save_fit_branches == True:
 Find slopes and curvatures
 '''''
 
-# Create an array of knots for slope spline
-knots = np.logspace(np.log10(v_data.min()), 
-                    np.log10(v_data.max()), 
-                    int(v_data.size/slope_smoothing))
-                  
-# Create an array of knots for curvature spline
-knots = np.logspace(np.log10(v_data.min()), 
-                    np.log10(v_data.max()), 
-                    int(v_data.size/curvature_smoothing))
+# Function to test if data is linear
+def is_linear(arr):
+  linspace_arr = np.linspace(arr[0], arr[-1], len(arr))
+  return np.all(np.isclose(arr, linspace_arr, rtol=1e-1, atol=1e-3))
+
+# Create an array of knots for splines
+if is_linear(v_data) == False:
+  slope_knots = np.logspace(np.log10(v_data.min()), 
+                            np.log10(v_data.max()), 
+                            int(v_data.size/slope_smoothing))
+                          
+  curvature_knots = np.logspace(np.log10(v_data.min()), 
+                                np.log10(v_data.max()), 
+                                int(v_data.size/curvature_smoothing))
+else:
+  slope_knots = np.linspace(v_data.min(), 
+                            v_data.max(), 
+                            int(v_data.size/slope_smoothing))
+
+  curvature_knots = np.linspace(v_data.min(), 
+                                v_data.max(), 
+                                int(v_data.size/curvature_smoothing))
 
 # Delete boundary knots
-knots = np.delete(knots, [0,-1])
+slope_knots = np.delete(slope_knots, [0,-1])
+curvature_knots = np.delete(curvature_knots, [0,-1])
+
+print(slope_knots)
 
 # Take spline of current
-jv_spline = LSQUnivariateSpline(v_data, j_data, k=5, t=knots)
+jv_spline = LSQUnivariateSpline(v_data, j_data, k=5, t=slope_knots)
 
 # Find slopes
 jv_slope = np.gradient(np.log10(j_data), 
@@ -583,7 +599,7 @@ Rseries_fit_slope = np.gradient(np.log10(Rseries_fit(v, Rs, *fit_Rs_params)),
                                 np.log10(v), edge_order=2)
 
 # Take spline of slope
-jv_slope_spline = LSQUnivariateSpline(v_data, jv_slope, k=5, t=knots)
+jv_slope_spline = LSQUnivariateSpline(v_data, jv_slope, k=5, t=slope_knots)
 
 # Find curvatures
 jv_curvature = np.gradient(jv_slope, np.log10(v_data), edge_order=2)
@@ -595,7 +611,7 @@ SC_curvature = np.gradient(SC_slope, np.log10(v), edge_order=2)
 Rseries_fit_curvature = np.gradient(Rseries_fit_slope, np.log10(v), edge_order=2)
 
 # Take spline of curvature
-jv_curvature_spline = LSQUnivariateSpline(v_data, jv_curvature, k=5, t=knots)
+jv_curvature_spline = LSQUnivariateSpline(v_data, jv_curvature, k=5, t=curvature_knots)
 
 
 
@@ -644,6 +660,12 @@ axs0.fill_between(v,
 axs0.plot(v_data, jv_spline(v_data), linewidth=linewidth, color=data_color)
 
 # set axis limits
+
+axs0.set_xlim(
+              v[0],
+              v[-1]
+)
+
 axs0.set_ylim(			
                 j_data.min()*0.1,			# grab min from data
                 j_data.max()*2				# grab max from data
@@ -732,10 +754,15 @@ if plot_slopes == True:
     fit_results_string_temp = fit_results.to_string()
     rows = fit_results_string_temp.split('\n')
     rows.pop(0)
+    rows.pop(1)
+    rows.pop(2)
+    rows.pop(2)
+    rows.pop(3)
+    rows.pop(3)
     fit_results_string = '\n'.join(rows)
     
     # Add table of votages to plot
-    axs1.text(0.02, -0.5, 
+    axs1.text(0.02, -0.2, 
                 fit_results_string,   
                 transform=axs0.transAxes, ha='left')
    
@@ -948,30 +975,130 @@ if plot_voltage_curves == True:
 
 
 '''
+Find coefficients in terms of effective voltage
+'''
+
+
+# Define fit power function
+def fit_power(x, coef, power):
+  return coef*np.power(x, power)
+
+# Fit curves
+fit_SC_eff_params, pcov = curve_fit(fit_power,
+          SC_volt_drop,
+          np.power(JoSC*SC_volt_drop/(SC_Vo+SC_d), sc)/A,
+          p0=[1e4,2],
+          method='lm'
+)
+
+fit_Ts_eff_params, pcov = curve_fit(fit_power, 
+          Ts_volt_drop, 
+          np.power(JoTs*Ts_volt_drop/(Ts_Vo+Ts_d), ts)/A,
+          p0=[1e4,7],
+          method='lm'
+)
+          
+fit_Bsh_eff_params, pcov = curve_fit(fit_power, 
+          block_shunt_volt_drop, 
+          np.power(JoBsh*block_shunt_volt_drop/(Bsh_Vo+Bsh_d), bsh)/A,
+          p0=[1,2],
+          method='lm'
+)
+
+fit_Tsh_eff_params, pcov = curve_fit(fit_power, 
+          Tsh_volt_drop, 
+          np.power(JoTsh*Tsh_volt_drop/(Tsh_Vo+Tsh_d), tsh)/A,
+          p0=[1e-2,8],
+          method='lm'
+)
+          
+fit_Bd_eff_params, pcov = curve_fit(fit_power, 
+          block_diode_volt_drop, 
+          np.power(JoBd*block_diode_volt_drop/(Bd_Vo+Bd_d), bd)/A,
+          p0=[1,2],
+          method='lm'
+)
+          
+# Create DataFrame
+fit_eff_params = np.concatenate((fit_SC_eff_params, 
+                                 fit_Ts_eff_params, 
+                                 fit_Bsh_eff_params,
+                                 fit_Tsh_eff_params,
+                                 fit_Bd_eff_params
+                                ))
+                      
+print(fit_eff_params)
+                      
+fit_eff_results = pd.DataFrame(index = [
+  'JoSC_eff',
+  'sc_eff', 
+  'JoTs_eff', 
+  'ts_eff', 
+  'JoBsh_eff',
+  'bsh_eff',
+  'JoTsh_eff', 
+  'tsh_eff',
+  'JoBd_eff',
+  'bd_eff'
+])
+
+fit_eff_results['Value'] = fit_eff_params
+
+
+
+print(fit_eff_results)
+
+
+'''
+Calculate mobility
+'''
+
+# Searh folder name for thickness
+folder_name = files.name
+match = re.search(r'(..)nm', folder_name)
+#thickness = int(match.group(1))
+thickness = 10
+
+# Calculate mobility
+def mobility(Jo_eff):
+  return 8/9*np.power(thickness*1e-9,3)/epsilon0/epsilon*Jo_eff/A
+
+JoSC_eff = fit_eff_results.loc['JoSC_eff']
+JoBsh_eff = fit_eff_results.loc['JoBsh_eff']
+JoBd_eff = fit_eff_results.loc['JoBd_eff']
+
+mobility_table = pd.DataFrame(index=[
+  'mu_SC',
+  'mu_Bsh',
+  'mu_Bd'
+  ], columns=['Value'])
+
+mu_SC = mobility(JoSC_eff)
+mu_Bsh = mobility(JoBsh_eff)
+mu_Bd = mobility(JoBd_eff)
+
+mobility_table.loc['mu_SC'] = mu_SC
+mobility_table.loc['mu_Bsh'] = mu_Bsh
+mobility_table.loc['mu_Bd'] = mu_Bd
+
+if write_parameter_values == True and plot_slopes == True:
+  
+  # remove column names from string
+  mobility_table_string_temp = mobility_table.to_string()
+  rows = mobility_table_string_temp.split('\n')
+  rows.pop(0)
+  mobility_table_string = '\n'.join(rows)
+  
+  # Add table of mobilities to plot
+  axs1.text(0.02, 0.55, 
+            mobility_table_string,   
+            transform=axs1.transAxes, ha='left')
+
+
+
+'''
 Plot effective voltage
 '''
-  
-# Define fit functions
-def fit_Ts_eff(x, JoTs_eff, ts_eff):
-  return JoTs_eff*np.power(x, ts_eff)
-
-def fit_Tsh_eff(x, JoTsh_eff, tsh_eff):
-  return JoTsh_eff*np.power(x, tsh_eff)
-
-# Definecurves
-fit_Ts_eff_params, pcov = curve_fit(fit_Ts_eff, 
-          Ts_volt_drop, 
-          np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A,
-          p0=[1e6,5],
-          method='lm'
-          )
-
-fit_Tsh_eff_params, pcov = curve_fit(fit_Tsh_eff, 
-          Tsh_volt_drop, 
-          np.power(JoTsh*Tsh_volt_drop/(Vo+Tsh_d), tsh)/A,
-          p0=[1,10],
-          method='lm'
-          )
 
 
 if plot_effective_voltage == True:
@@ -989,62 +1116,108 @@ if plot_effective_voltage == True:
   ax.set_yscale("log")
   ax.set_xlim(xmin=0.001)
   ax.set_ylim(ymin=0.00001, 
-              ymax=3*np.power(JoTs*Ts_volt_drop[-1]/(Vo+Ts_d), ts)/A)
+              ymax=3*np.power(JoSC*SC_volt_drop[-1]/(SC_Vo+SC_d), sc)/A)
 
 
+  # Plot SC
+  ax.plot(SC_volt_drop, 
+          np.power(JoSC*SC_volt_drop/(SC_Vo+SC_d), sc)/A, 
+          color='yellow')
+  ax.text(SC_volt_drop[-1],
+          np.power(JoSC*SC_volt_drop[-1]/(SC_Vo+SC_d), sc)/A,
+          'SC_eff', ha='left')
+  ax.plot(v, 
+          np.power(JoSC*SC_volt_drop/(SC_Vo+SC_d), sc)/A, 
+          color='yellow')
+  ax.text(v[-1],
+        np.power(JoSC*SC_volt_drop[-1]/(SC_Vo+SC_d), sc)/A,
+        'SC', ha='left')
 
   # Plot Ts
   ax.plot(Ts_volt_drop, 
-          np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A, 
+          np.power(JoTs*Ts_volt_drop/(Ts_Vo+Ts_d), ts)/A, 
           color='cyan')
   ax.text(Ts_volt_drop[-1],
-          np.power(JoTs*Ts_volt_drop[-1]/(Vo+Ts_d), ts)/A,
+          np.power(JoTs*Ts_volt_drop[-1]/(Ts_Vo+Ts_d), ts)/A,
           'Ts_eff', ha='left')
   ax.plot(v, 
-          np.power(JoTs*Ts_volt_drop/(Vo+Ts_d), ts)/A, 
+          np.power(JoTs*Ts_volt_drop/(Ts_Vo+Ts_d), ts)/A, 
           color='cyan')
   ax.text(v[-1],
-        np.power(JoTs*Ts_volt_drop[-1]/(Vo+Ts_d), ts)/A,
+        np.power(JoTs*Ts_volt_drop[-1]/(Ts_Vo+Ts_d), ts)/A,
         'Ts', ha='left')
+      
+  # Plot Bsh
+  ax.plot(block_shunt_volt_drop, 
+          np.power(JoBsh*block_shunt_volt_drop/(Bsh_Vo+Bsh_d), bsh)/A, 
+          color='red')
+  ax.text(block_shunt_volt_drop[-1],
+          np.power(JoBsh*block_shunt_volt_drop[-1]/(Bsh_Vo+Bsh_d), bsh)/A,
+          'Bsh_eff', ha='left')
+  ax.plot(v, 
+          np.power(JoBsh*block_shunt_volt_drop/(Bsh_Vo+Bsh_d), bsh)/A, 
+          color='red')
+  ax.text(v[-1],
+          np.power(JoBsh*block_shunt_volt_drop[-1]/(Bsh_Vo+Bsh_d), bsh)/A,
+          'Bsh', ha='left')
 
   # Plot Tsh
   ax.plot(Tsh_volt_drop, 
-          np.power(JoTsh*Tsh_volt_drop/(Vo+Tsh_d), tsh)/A, 
+          np.power(JoTsh*Tsh_volt_drop/(Tsh_Vo+Tsh_d), tsh)/A, 
           color='red')
   ax.text(Tsh_volt_drop[-1],
-          np.power(JoTsh*Tsh_volt_drop[-1]/(Vo+Ts_d), tsh)/A,
+          np.power(JoTsh*Tsh_volt_drop[-1]/(Tsh_Vo+Ts_d), tsh)/A,
           'Tsh_eff', ha='left')
   ax.plot(v, 
-          np.power(JoTsh*Tsh_volt_drop/(Vo+Tsh_d), tsh)/A, 
+          np.power(JoTsh*Tsh_volt_drop/(Tsh_Vo+Tsh_d), tsh)/A, 
           color='red')
   ax.text(v[-1],
-          np.power(JoTsh*Tsh_volt_drop[-1]/(Vo+Ts_d), tsh)/A,
+          np.power(JoTsh*Tsh_volt_drop[-1]/(Tsh_Vo+Ts_d), tsh)/A,
           'Tsh', ha='left')
+        
+  # Plot Bd
+  ax.plot(block_diode_volt_drop, 
+          np.power(JoBd*block_diode_volt_drop/(Bd_Vo+Bd_d), bd)/A, 
+          color='red')
+  ax.text(block_diode_volt_drop[-1],
+          np.power(JoBd*block_diode_volt_drop[-1]/(Bd_Vo+Bd_d), bd)/A,
+          'Bd_eff', ha='left')
+  ax.plot(v, 
+          np.power(JoBd*block_diode_volt_drop/(Bd_Vo+Bd_d), bd)/A, 
+          color='red')
+  ax.text(v[-1],
+          np.power(JoBd*block_diode_volt_drop[-1]/(Bd_Vo+Bd_d), bd)/A,
+          'Bd', ha='left')
 
 
 
   # Plot fit
+  ax.plot(SC_volt_drop, 
+          fit_power(SC_volt_drop, *fit_SC_eff_params), linestyle="dashed",
+          color=line_color)  
+  
   ax.plot(Ts_volt_drop, 
-          fit_Ts_eff(Ts_volt_drop, *fit_Ts_eff_params), linestyle="dashed",
+          fit_power(Ts_volt_drop, *fit_Ts_eff_params), linestyle="dashed",
           color=line_color)
+
+  ax.plot(block_shunt_volt_drop, 
+        fit_power(block_shunt_volt_drop, *fit_Bsh_eff_params), linestyle="dashed",
+        color=line_color)
 
   ax.plot(Tsh_volt_drop, 
-          fit_Tsh_eff(Tsh_volt_drop, *fit_Tsh_eff_params), linestyle="dashed",
+          fit_power(Tsh_volt_drop, *fit_Tsh_eff_params), linestyle="dashed",
           color=line_color)
+        
+  ax.plot(block_diode_volt_drop, 
+        fit_power(block_diode_volt_drop, *fit_Bd_eff_params), linestyle="dashed",
+        color=line_color)
 
-# Create DataFrame
-fit_eff_params = np.concatenate((fit_Tsh_eff_params, fit_Ts_eff_params))
-fit_eff_results = pd.DataFrame(index = ['JoTsh_eff', 'tsh_eff', 'JoTs_eff', 'ts_eff'])
-fit_eff_results['Value'] = fit_eff_params
-
-if write_parameter_values == True and plot_effective_voltage == True:
+  if write_parameter_values == True:
   
-  # Add table of parameters to plot
-  ax.text(0.02, 0.75, 
+    # Add table of parameters to plot
+    ax.text(0.02, 0, 
               fit_eff_results.to_string(),   
               transform=ax.transAxes, ha='left')
-
-print(fit_eff_results)
 
 
 plt.show()
