@@ -21,7 +21,7 @@ import re
 # Type path to folder here (Mac/Windows/Unix compatible):
 
 files = Path(
-  "/Users/alexiarango/Documents/Oghma/Circuit V13-3/circuit_v13-3 c60 60nm d14 up/"
+  "/Users/alexiarango/Documents/Oghma/Circuit V13-3/circuit_v13-3 c60 30nm d10 up/"
 )
 
 ## Windows:
@@ -43,21 +43,22 @@ epsilon = 2.3             # dielectric constant of C60
 Set plotting attributes
 '''
 
-slope_smoothing = 1.5
-curvature_smoothing = 3
+slope_smoothing = 4
+curvature_smoothing = 5
+mask_error_voltage = 0.1
 
 black_background = True
 dpi=170
 line_color = 'white'
 data_color = 'darkcyan'
-point_color = (0.3, 0.3, 0.3)
+point_color = (0.8, 0.8, 0)
 fit_color = 'deeppink'
 elements_line_color = 'gray'
 linewidth = 1
 
 plot_slopes = True
-plot_voltage_curves = True
-plot_effective_voltage = True
+plot_voltage_curves = False
+plot_effective_voltage = False
 
 write_model_version = True
 write_parameter_values = True
@@ -72,7 +73,7 @@ plot_height = 8.3
 show_circuit_legs = 5
 fill_under_curve = 0
 
-model_version = 'Model V13-3' 
+model_version = 'Model V13-4' 
 
 save_fit_branches = True
 
@@ -357,6 +358,9 @@ pd.options.display.float_format = '{:.3g}'.format
 print(circuit_parameters_table)
 
 
+
+
+
 """
 Circuit functions - circuit elements
 """
@@ -438,8 +442,8 @@ if show_circuit_legs > 3:
       return (Diode(Jo, n) 
                   + Tshunt(JoTsh, tsh, Vbi) 
                   + Inj_p(JoIp, ip, Vo) 
-                  + Rshunt(Rsh)
-                  )
+                  + Rshunt(Rsh))
+                  
 elif show_circuit_legs == 3:
     def Jdark(Rsh, 
             Jo, 
@@ -452,8 +456,8 @@ elif show_circuit_legs == 3:
             Vo):
       return (Diode(Jo, n) 
                   + Tshunt(JoTsh, tsh, Vbi)  
-                  + Rshunt(Rsh)
-                  )
+                  + Rshunt(Rsh))
+                  
 elif show_circuit_legs == 2:
     def Jdark(Rsh, 
             Jo, 
@@ -465,8 +469,8 @@ elif show_circuit_legs == 2:
             Vbi, 
             Vo):
       return (Diode(Jo, n) 
-                  + Rshunt(Rsh)
-                  )
+                  + Rshunt(Rsh))
+                  
 elif show_circuit_legs == 1:
     def Jdark(Rsh, 
             Jo, 
@@ -477,10 +481,8 @@ elif show_circuit_legs == 1:
             ip, 
             Vbi, 
             Vo):
-      return (Rshunt(Rsh)
-                  )
+      return (Rshunt(Rsh))
 
-            
 def Jdark_slope(Rsh, 
           Jo, 
           n, 
@@ -499,7 +501,7 @@ def Jdark_slope(Rsh,
                                       ip, 
                                       Vbi, 
                                       Vo)), np.log10(v))
-                                      
+
 def Jdark_curvature(Rsh, 
                     Jo, 
                     n, 
@@ -518,6 +520,7 @@ def Jdark_curvature(Rsh,
                                 ip,
                                 Vbi, 
                                 Vo), np.log10(v))
+
 
 
 
@@ -541,7 +544,7 @@ if save_fit_branches == True:
 
 
 '''''
-Find slopes and curvatures
+Find splines, slopes and curvatures
 '''''
 
 # Function to test if data is linear
@@ -616,6 +619,55 @@ jv_curvature_spline = LSQUnivariateSpline(v_data, jv_curvature, k=5, t=curvature
 
 
 
+
+'''
+Calculate error
+'''
+
+# Mask voltages below specificied value
+mask = v >= mask_error_voltage
+v_masked = v[mask]
+mask_data = v_data >= mask_error_voltage
+v_data_masked = v_data[mask_data]
+
+# Mask Jdark
+Jdark_array = Jdark(Rsh, 
+                    Jo, 
+                    n, 
+                    JoTsh, 
+                    tsh, 
+                    JoIp, 
+                    ip, 
+                    Vbi, 
+                    Vo)
+Jdark_masked = Jdark_array[mask]
+
+# Mask Jdark_slope
+Jdark_slope_array = Jdark_slope(Rsh, 
+                    Jo, 
+                    n, 
+                    JoTsh, 
+                    tsh, 
+                    JoIp, 
+                    ip, 
+                    Vbi, 
+                    Vo)
+Jdark_slope_masked = Jdark_slope_array[mask]
+
+# Current density error
+Jdark_error = np.mean(
+                      np.power(
+                                np.log10(jv_spline(v_masked))
+                              - np.log10(Jdark_masked), 2))
+
+# Slope error
+Jdark_slope_error = np.mean(
+                            np.power(
+                                    np.log10(jv_slope_spline(v_masked))
+                                  - np.log10(Jdark_slope_masked), 2))
+
+
+
 """
 Plotting
 """
@@ -657,7 +709,7 @@ axs0.fill_between(v,
                   alpha = fill_under_curve)
 
 # Add spline
-axs0.plot(v_data, jv_spline(v_data), linewidth=linewidth, color=data_color)
+axs0.plot(v_data_masked, jv_spline(v_data_masked), linewidth=linewidth, color=data_color)
 
 # set axis limits
 
@@ -674,7 +726,7 @@ axs0.set_ylim(
 if write_model_version == True:
   
   #text box for model version
-  axs0.text(0.8, 0.06, model_version, transform=axs0.transAxes)		
+  axs0.text(0.98, 0.025, model_version, transform=axs0.transAxes, ha='right')		
 
 if write_parameter_values == True:
   
@@ -688,6 +740,12 @@ if write_parameter_values == True:
   axs0.text(0.02, 0.025, 
               circuit_parameters_table_string,   
               transform=axs0.transAxes, ha='left')
+            
+  # text box for jv error
+  axs0.text(0.5, 0.025, 'Error = ' + "{:.3e}".format(Jdark_error), transform=axs0.transAxes, ha='center')
+
+
+
 
 
 '''''
@@ -727,7 +785,7 @@ if plot_slopes == True:
               linewidth=linewidth, c=fit_color, label='Fit')
   
   # Add spline to slope plot
-  axs1.plot(v_data, jv_slope_spline(v_data), linewidth=linewidth, color=data_color)
+  axs1.plot(v_data_masked, jv_slope_spline(v_data_masked), linewidth=linewidth, color=data_color)
     
   # Prepare curvature plot
   
@@ -744,7 +802,7 @@ if plot_slopes == True:
             linewidth=linewidth, c=fit_color, label='Fit')
   
   # Add data to curvature plot
-  axs2.plot(v_data, jv_curvature_spline(v_data), linewidth=linewidth, color=data_color)
+  axs2.plot(v_data_masked, jv_curvature_spline(v_data_masked), linewidth=linewidth, color=data_color)
   #axs2.plot(v_data, jv_spline_gradient2, linewidth=linewidth, color='orange')
   
   
@@ -762,9 +820,12 @@ if plot_slopes == True:
     fit_results_string = '\n'.join(rows)
     
     # Add table of votages to plot
-    axs1.text(0.02, -0.2, 
+    axs1.text(0.02, 0.8, 
                 fit_results_string,   
-                transform=axs0.transAxes, ha='left')
+                transform=axs1.transAxes, ha='left')
+              
+    # text box for jv slope error
+    axs1.text(0.5, 0.025, 'Error = ' + "{:.3e}".format(Jdark_slope_error), transform=axs1.transAxes, ha='center')
    
     
 '''''
@@ -780,15 +841,15 @@ if (plot_Vbi_point == True or
   
   # Plot points
   if plot_Vbi_point == True:
-    axs0.plot(Vbi_fit_result, fint_Jdark(Vbi_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+    axs0.plot(Vbi_fit_result, fint_Jdark(Vbi_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
     Vbi_text = axs0.text(Vbi_fit_result*np.power(10,-0.01), 
                           fint_Jdark(Vbi_fit_result)*np.power(10, plot_height/30), '$V_{bi}$', ha='right')
   if plot_Vo_point == True:
-    axs0.plot(Vo_fit_result, fint_Jdark(Vo_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+    axs0.plot(Vo_fit_result, fint_Jdark(Vo_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
     Vo_text = axs0.text(Vo_fit_result*np.power(10,-0.01), 
                         fint_Jdark(Vo_fit_result)*np.power(10, plot_height/30), '$V_{0}$', ha='right')
   if plot_Vr_point == True:
-    axs0.plot(Vr_fit_result, fint_Jdark(Vr_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+    axs0.plot(Vr_fit_result, fint_Jdark(Vr_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
     Vr_text = axs0.text(Vr_fit_result*np.power(10,-0.01), 
                         fint_Jdark(Vr_fit_result)*np.power(10, plot_height/30), '$V_{r}$', ha='right')
     
@@ -799,15 +860,15 @@ if (plot_Vbi_point == True or
     
     # Plot slope points
     if plot_Vbi_point == True:
-      axs1.plot(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      axs1.plot(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
       Vbi_text = axs1.text(Vbi_fit_result*np.power(10,-0.02), 
                           fint_Jdark_slope(Vbi_fit_result) + plot_height/30, '$V_{bi}$', ha='right')
     if plot_Vo_point == True:
-      axs1.plot(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      axs1.plot(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
       Vo_text = axs1.text(Vo_fit_result*np.power(10,0.02), 
                           fint_Jdark_slope(Vo_fit_result) + plot_height/30, '$V_{0}$', ha='left')
     if plot_Vr_point == True:
-      axs1.plot(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      axs1.plot(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
       Vr_text = axs1.text(Vr_fit_result*np.power(10,0.02), 
                           fint_Jdark_slope(Vr_fit_result) + plot_height/30, '$V_{r}$', ha='left')
       
@@ -816,15 +877,15 @@ if (plot_Vbi_point == True or
     
     # Plot points
     if plot_Vbi_point == True:
-      axs2.plot(Vbi_fit_result, fint_Jdark_curvature(Vbi_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      axs2.plot(Vbi_fit_result, fint_Jdark_curvature(Vbi_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
       Vbi_text = axs2.text(Vbi_fit_result*np.power(10,-0.02), 
                           fint_Jdark_curvature(Vbi_fit_result) + plot_height/30, '$V_{bi}$', ha='right')
     if plot_Vo_point == True:
-      axs2.plot(Vo_fit_result, fint_Jdark_curvature(Vo_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      axs2.plot(Vo_fit_result, fint_Jdark_curvature(Vo_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
       Vo_text = axs2.text(Vo_fit_result*np.power(10,0.02), 
                           fint_Jdark_curvature(Vo_fit_result) + plot_height/30, '$V_{0}$', ha='left')
     if plot_Vr_point == True:
-      axs2.plot(Vr_fit_result, fint_Jdark_curvature(Vr_fit_result), marker='o', fillstyle='none', markersize=4, c='y')
+      axs2.plot(Vr_fit_result, fint_Jdark_curvature(Vr_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
       Vr_text = axs2.text(Vr_fit_result*np.power(10,0.02), 
                           fint_Jdark_curvature(Vr_fit_result) + plot_height/30, '$V_{r}$', ha='left')
     
@@ -1056,12 +1117,12 @@ Calculate mobility
 # Searh folder name for thickness
 folder_name = files.name
 match = re.search(r'(..)nm', folder_name)
-#thickness = int(match.group(1))
-thickness = 10
+thickness = int(match.group(1))
+#thickness = 10
 
 # Calculate mobility
 def mobility(Jo_eff):
-  return 8/9*np.power(thickness*1e-9,3)/epsilon0/epsilon*Jo_eff/A
+  return 8/9*np.power(thickness*1e-9,3)/epsilon0/epsilon*Jo_eff
 
 JoSC_eff = fit_eff_results.loc['JoSC_eff']
 JoBsh_eff = fit_eff_results.loc['JoBsh_eff']
