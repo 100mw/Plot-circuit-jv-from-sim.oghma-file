@@ -21,7 +21,11 @@ import re
 # Type path to folder here (Mac/Windows/Unix compatible):
 
 files = Path(
+<<<<<<< Updated upstream
   "/Users/alexiarango/Documents/Oghma/Circuit V13-3/circuit_v13-3 c60 60nm d14 up/"
+=======
+  "/Users/alexiarango/Documents/Oghma/Circuit V13-3/circuit_v13 - jv 20230413 60nm/"
+>>>>>>> Stashed changes
 )
 
 ## Windows:
@@ -36,15 +40,23 @@ A = 0.00000121	          # device area
 k = 8.617333262e-5		    # Boltzmann constant
 T = 300					          # temperature
 epsilon0 = 8.854e-12      # permitivity of free space in F/m
-epsilon = 2.3             # dielectric constant of C60
+epsilon_C60 = 2.3         # dielectric constant of C60
+epsilon_MoO3 = 35
+thickness_MoO3 = 10
 
 
 '''
 Set plotting attributes
 '''
 
+<<<<<<< Updated upstream
 slope_smoothing = 1.5
 curvature_smoothing = 3
+=======
+slope_smoothing = 1.1
+curvature_smoothing = 4
+mask_error_voltage = 0.02
+>>>>>>> Stashed changes
 
 black_background = True
 dpi=170
@@ -56,7 +68,11 @@ elements_line_color = 'gray'
 linewidth = 1
 
 plot_slopes = True
+<<<<<<< Updated upstream
 plot_voltage_curves = True
+=======
+plot_voltage_curves = False
+>>>>>>> Stashed changes
 plot_effective_voltage = True
 
 write_model_version = True
@@ -97,13 +113,15 @@ if v_data[0] < 1e-10:
 Extract voltage drops across circuit elements
 '''
 
-# Generate list folder paths in netlist folder
+# Generate list of folder paths in netlist folder
 netlist = files / "netlist/"
 folders = list(netlist.glob('*/'))
 #print(folders)
 
 # Iterate through each folder and read circuit_labels.dat files
-values = pd.DataFrame()											#create empty DataFrame
+
+#create empty DataFrame
+values = pd.DataFrame()
 
 #iterate over list with length = number of folders
 for x in range(len(folders)):
@@ -130,7 +148,7 @@ for x in range(len(folders)):
 	temp.rename(columns={'segments':'Voltage [V]'}, inplace=True)
   
   #open data.json file
-	with open(folders[x] / "data.json", 'r') as f:				
+	with open(folders[x] / "data.json", 'r') as f:
 		data = json.load(f)
     
   #get voltage from data.json and write to temp DataFrame
@@ -155,7 +173,7 @@ values.rename(columns={
   'segment8' :  'SC'
   }, inplace=True)
 
-
+# Turn columns into numpy arrays
 v = values['Voltage [V]'].to_numpy(dtype=float)
 Diode_volt_drop = values['D'].to_numpy(dtype=float)
 Rsh_volt_drop = values['Rsh'].to_numpy(dtype=float)
@@ -529,7 +547,11 @@ if save_fit_branches == True:
   
   fit_legs = pd.DataFrame()
   fit_legs['Voltage [V]'] = v
+  fit_legs['Rshunt [A/m^2]'] = Rshunt(Rsh)
+  fit_legs['Diffusion [A/m^2]'] = Diode(Jo, n)
+  fit_legs['Shunt [A/m^2]'] = Tshunt(JoTsh, tsh, Vbi)
   fit_legs['Injection [A/m^2]'] = Inj_p(JoIp, ip, Vo)
+  fit_legs['Rseries [A/m^2]'] = Rseries(Rs)
   
   # save curve
   fit_legs.to_csv(files/'Fit legs.txt',sep='\t', index=False)
@@ -570,8 +592,6 @@ else:
 # Delete boundary knots
 slope_knots = np.delete(slope_knots, [0,-1])
 curvature_knots = np.delete(curvature_knots, [0,-1])
-
-print(slope_knots)
 
 # Take spline of current
 jv_spline = LSQUnivariateSpline(v_data, j_data, k=5, t=slope_knots)
@@ -984,35 +1004,40 @@ def fit_power(x, coef, power):
   return coef*np.power(x, power)
 
 # Fit curves
-fit_SC_eff_params, pcov = curve_fit(fit_power,
+fit_SC_eff_params, pcov = curve_fit(
+          fit_power,
           SC_volt_drop,
           np.power(JoSC*SC_volt_drop/(SC_Vo+SC_d), sc)/A,
           p0=[1e4,2],
           method='lm'
 )
 
-fit_Ts_eff_params, pcov = curve_fit(fit_power, 
+fit_Ts_eff_params, pcov = curve_fit(
+          fit_power, 
           Ts_volt_drop, 
           np.power(JoTs*Ts_volt_drop/(Ts_Vo+Ts_d), ts)/A,
           p0=[1e4,7],
           method='lm'
 )
           
-fit_Bsh_eff_params, pcov = curve_fit(fit_power, 
+fit_Bsh_eff_params, pcov = curve_fit(
+          fit_power, 
           block_shunt_volt_drop, 
           np.power(JoBsh*block_shunt_volt_drop/(Bsh_Vo+Bsh_d), bsh)/A,
-          p0=[1,2],
+          p0=[1e4,2],
           method='lm'
 )
 
-fit_Tsh_eff_params, pcov = curve_fit(fit_power, 
+fit_Tsh_eff_params, pcov = curve_fit(
+          fit_power, 
           Tsh_volt_drop, 
           np.power(JoTsh*Tsh_volt_drop/(Tsh_Vo+Tsh_d), tsh)/A,
           p0=[1e-2,8],
           method='lm'
 )
           
-fit_Bd_eff_params, pcov = curve_fit(fit_power, 
+fit_Bd_eff_params, pcov = curve_fit(
+          fit_power, 
           block_diode_volt_drop, 
           np.power(JoBd*block_diode_volt_drop/(Bd_Vo+Bd_d), bd)/A,
           p0=[1,2],
@@ -1026,8 +1051,6 @@ fit_eff_params = np.concatenate((fit_SC_eff_params,
                                  fit_Tsh_eff_params,
                                  fit_Bd_eff_params
                                 ))
-                      
-print(fit_eff_params)
                       
 fit_eff_results = pd.DataFrame(index = [
   'JoSC_eff',
@@ -1049,6 +1072,9 @@ fit_eff_results['Value'] = fit_eff_params
 print(fit_eff_results)
 
 
+
+
+
 '''
 Calculate mobility
 '''
@@ -1056,12 +1082,20 @@ Calculate mobility
 # Searh folder name for thickness
 folder_name = files.name
 match = re.search(r'(..)nm', folder_name)
+<<<<<<< Updated upstream
 #thickness = int(match.group(1))
 thickness = 10
 
 # Calculate mobility
 def mobility(Jo_eff):
   return 8/9*np.power(thickness*1e-9,3)/epsilon0/epsilon*Jo_eff/A
+=======
+thickness_C60 = int(match.group(1))
+
+# Calculate mobility
+def mobility(Jo_eff, thickness, epsilon):
+  return 8/9*np.power(thickness*1e-9,3)/epsilon0/epsilon*Jo_eff
+>>>>>>> Stashed changes
 
 JoSC_eff = fit_eff_results.loc['JoSC_eff']
 JoBsh_eff = fit_eff_results.loc['JoBsh_eff']
@@ -1069,17 +1103,14 @@ JoBd_eff = fit_eff_results.loc['JoBd_eff']
 
 mobility_table = pd.DataFrame(index=[
   'mu_SC',
-  'mu_Bsh',
-  'mu_Bd'
+  'mu_Bsh'
   ], columns=['Value'])
 
-mu_SC = mobility(JoSC_eff)
-mu_Bsh = mobility(JoBsh_eff)
-mu_Bd = mobility(JoBd_eff)
+mu_SC = mobility(JoSC_eff, thickness_C60, epsilon_C60)
+mu_Bsh = mobility(JoBsh_eff, thickness_MoO3, epsilon_MoO3)
 
 mobility_table.loc['mu_SC'] = mu_SC
 mobility_table.loc['mu_Bsh'] = mu_Bsh
-mobility_table.loc['mu_Bd'] = mu_Bd
 
 if write_parameter_values == True and plot_slopes == True:
   
