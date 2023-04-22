@@ -21,7 +21,7 @@ import re
 # Type path to folder here (Mac/Windows/Unix compatible):
 
 files = Path(
-"/Users/alexiarango/Documents/Oghma/Circuit V13-3/circuit_v13-3 c60 30nm d10 up/"
+  "/Users/alexiarango/Documents/Oghma/Circuit V13-5/circuit_v13-5 c60 60nm d14 down/"
 )
 
 ## Windows:
@@ -45,12 +45,9 @@ thickness_MoO3 = 10
 Set plotting attributes
 '''
 
-
-
 slope_smoothing = 4
-curvature_smoothing = 5
-mask_error_voltage = 0.1
-
+curvature_smoothing = 4
+mask_error_voltage = 0.2
 
 black_background = True
 dpi=170
@@ -63,7 +60,7 @@ linewidth = 1
 
 plot_slopes = True
 plot_voltage_curves = False
-plot_effective_voltage = False
+plot_effective_voltage = True
 
 write_model_version = True
 write_parameter_values = True
@@ -78,7 +75,7 @@ plot_height = 8.3
 show_circuit_legs = 5
 fill_under_curve = 0
 
-model_version = 'Model V13-4' 
+model_version = 'Model V13-5' 
 
 save_fit_branches = True
 
@@ -922,7 +919,7 @@ if show_circuit_legs > 0:
         if show_circuit_legs > 4:
           axs0.plot(v, 
             Tseries(JoTs, ts, Vo), 
-            color=elements_line_color, linewidth=linewidth/2)
+            color=elements_line_color, linewidth=linewidth/2, linestyle=(2,(2,5,2)))
           axs0.plot(v, 
             SC(JoSC, sc, Vo), 
             color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot')
@@ -952,7 +949,7 @@ if plot_slopes == True:
       
   axs1.plot(v, 
         Tseries_slope, 
-        color=elements_line_color, linewidth=linewidth/2, linestyle='dashdot') 
+        color=elements_line_color, linewidth=linewidth/2, linestyle=(2,(2,5,2))) 
       
   axs1.plot(v, 
         SC_slope, 
@@ -1121,7 +1118,7 @@ fit_eff_results['Value'] = fit_eff_params
 
 print(fit_eff_results)
 
-
+print(fit_eff_results.loc['JoTs_eff', 'Value'])
 
 
 
@@ -1130,9 +1127,9 @@ Calculate mobility
 '''
 
 # Searh folder name for thickness
-folder_name = files.name
-match = re.search(r'(..)nm', folder_name)
-thickness_C60 = int(match.group(1))
+#folder_name = files.name
+#match = re.search(r'(..)nm', folder_name)
+#thickness_C60 = int(match.group(1))
 
 # Calculate mobility
 def mobility(Jo_eff, thickness, epsilon):
@@ -1147,7 +1144,7 @@ mobility_table = pd.DataFrame(index=[
   'mu_Bsh'
   ], columns=['Value'])
 
-mu_SC = mobility(JoSC_eff, thickness_C60, epsilon_C60)
+mu_SC = mobility(JoSC_eff, thickness_MoO3, epsilon_C60)
 mu_Bsh = mobility(JoBsh_eff, thickness_MoO3, epsilon_MoO3)
 
 mobility_table.loc['mu_SC'] = mu_SC
@@ -1165,7 +1162,11 @@ if write_parameter_values == True and plot_slopes == True:
   axs1.text(0.02, 0.55, 
             mobility_table_string,   
             transform=axs1.transAxes, ha='left')
-
+  
+  # Add JoTs_eff to plot
+  axs1.text(0.02, 0.35, 
+            'JoTs_eff' + "  " + "{:.3g}".format(fit_eff_results.loc['JoTs_eff', 'Value']),   
+            transform=axs1.transAxes, ha='left')
 
 
 '''
