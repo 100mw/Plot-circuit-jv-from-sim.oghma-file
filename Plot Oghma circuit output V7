@@ -60,7 +60,7 @@ linewidth = 1
 
 plot_slopes = True
 plot_voltage_curves = False
-plot_effective_voltage = True
+plot_effective_voltage = False 
 
 write_model_version = True
 write_parameter_values = True
@@ -1092,39 +1092,48 @@ fit_Bd_eff_params, pcov = curve_fit(
 )
           
 # Create DataFrame
-fit_eff_params = np.concatenate((fit_SC_eff_params, 
-                                 fit_Ts_eff_params, 
-                                 fit_Bsh_eff_params,
-                                 fit_Tsh_eff_params,
-                                 fit_Bd_eff_params
-                                ))
-                      
+fit_eff_params = [fit_SC_eff_params[0], 
+                                 fit_Ts_eff_params[0], 
+                                 fit_Bsh_eff_params[0],
+                                 fit_Tsh_eff_params[0],
+                                 fit_Bd_eff_params[0]
+]
+                                
 fit_eff_results = pd.DataFrame(index = [
   'JoSC_eff',
-  'sc_eff', 
   'JoTs_eff', 
-  'ts_eff', 
   'JoBsh_eff',
-  'bsh_eff',
   'JoTsh_eff', 
-  'tsh_eff',
   'JoBd_eff',
-  'bd_eff'
 ])
 
 fit_eff_results['Value'] = fit_eff_params
 
 
+# Add table of effective coefficients to plot
+if write_parameter_values == True and plot_slopes == True:
+  
+  # remove column names from string
+  fit_eff_results_string_temp = fit_eff_results.to_string()
+  rows = fit_eff_results_string_temp.split('\n')
+  rows.pop(0)
+  fit_eff_results_string = '\n'.join(rows)
+  
+  # Add table of mobilities to plot
+  axs1.text(0.02, 0.35, 
+            fit_eff_results_string,   
+            transform=axs1.transAxes, ha='left')
+
+
 
 print(fit_eff_results)
 
-print(fit_eff_results.loc['JoTs_eff', 'Value'])
+
 
 
 
 '''
 Calculate mobility
-'''
 
 # Searh folder name for thickness
 #folder_name = files.name
@@ -1167,6 +1176,13 @@ if write_parameter_values == True and plot_slopes == True:
   axs1.text(0.02, 0.35, 
             'JoTs_eff' + "  " + "{:.3g}".format(fit_eff_results.loc['JoTs_eff', 'Value']),   
             transform=axs1.transAxes, ha='left')
+'''
+
+
+
+
+
+
 
 
 '''
