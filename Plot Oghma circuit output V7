@@ -21,7 +21,7 @@ import re
 # Type path to folder here (Mac/Windows/Unix compatible):
 
 files = Path(
-  "/Users/alexiarango/Documents/Oghma/Circuit V13-5/circuit_v13-5 c60 60nm d14 down/"
+  "/Users/alexiarango/Documents/Oghma/Circuit V13-8/circuit_v13-8 c60 40nm d14 up/"
 )
 
 ## Windows:
@@ -35,18 +35,18 @@ files = Path(
 A = 0.00000121	          # device area
 k = 8.617333262e-5		    # Boltzmann constant
 T = 300					          # temperature
-epsilon0 = 8.854e-12      # permitivity of free space in F/m
-epsilon_C60 = 2.3         # dielectric constant of C60
-epsilon_MoO3 = 35
-thickness_MoO3 = 10
+#epsilon0 = 8.854e-12      # permitivity of free space in F/m
+#epsilon_C60 = 2.3         # dielectric constant of C60
+#epsilon_MoO3 = 35
+#thickness_MoO3 = 10
 
 
 '''
 Set plotting attributes
 '''
 
-slope_smoothing = 4
-curvature_smoothing = 4
+slope_smoothing = 3
+curvature_smoothing = 3
 mask_error_voltage = 0.2
 
 black_background = True
@@ -59,7 +59,7 @@ elements_line_color = 'gray'
 linewidth = 1
 
 plot_slopes = True
-plot_voltage_curves = False
+plot_voltage_curves = True
 plot_effective_voltage = False 
 
 write_model_version = True
@@ -75,7 +75,7 @@ plot_height = 8.3
 show_circuit_legs = 5
 fill_under_curve = 0
 
-model_version = 'Model V13-5' 
+model_version = 'Model V13-8' 
 
 save_fit_branches = True
 
@@ -239,7 +239,7 @@ fit_params = np.concatenate((fit_diode_params, fit_Inj_params, fit_Rs_params))
 perr = np.concatenate((perr_diode, perr_Inj, perr_Rs))
 
 # Create DataFrame
-fit_results = pd.DataFrame(index = ['Vbi', 
+fit_volt_results_df = pd.DataFrame(index = ['Vbi', 
                                     'diode width', 
                                     'Vo', 
                                     'Ip_width', 
@@ -247,15 +247,16 @@ fit_results = pd.DataFrame(index = ['Vbi',
                                     'Vr', 
                                     'Rs_width', 
                                     'Rs_n'])
-fit_results['Value'] = fit_params
+fit_volt_results_df['Value'] = fit_params
 #fit_results['Error'] = perr
 
-print(fit_results)
 
 Vbi_fit_result = fit_diode_params[0]
 Vo_fit_result = fit_Inj_params[0]
 Vr_fit_result = fit_Rs_params[0]
 
+  
+  
   
 
 '''
@@ -353,13 +354,14 @@ circuit_parameters_index = ['Rs',
                             'Rsh'
 ]
 
-circuit_parameters_table = pd.DataFrame(data = circuit_parameters,
-                                        index = circuit_parameters_index)
+circuit_parameters_df = pd.DataFrame(data = circuit_parameters,
+                                      index = circuit_parameters_index,
+                                      columns = ['Value']
+                                      )
 
 # Display DataFrames as decimals or scientific notation
 pd.options.display.float_format = '{:.3g}'.format
 
-print(circuit_parameters_table)
 
 
 
@@ -542,10 +544,22 @@ if save_fit_branches == True:
   fit_legs['Injection [A/m^2]'] = Inj_p(JoIp, ip, Vo)
   fit_legs['Rseries [A/m^2]'] = Rseries(Rs)
   
-  # save curve
-  fit_legs.to_csv(files/'Fit legs.txt',sep='\t', index=False)
+  # path of new folder for results
+  folderpath = files.parent / (files.stem + ' results')
   
-  print('Results Saved')
+  # make new folder
+  folderpath.mkdir(parents=True, exist_ok=True)
+  
+  # check if file exits
+  filename = Path(folderpath/'Fit legs .txt')
+  i = 1
+  while (new_filename := filename.with_stem(f"{filename.stem}{i}")).exists():
+    i += 1
+  
+  # save curve
+  fit_legs.to_csv(new_filename, sep='\t', index=False)
+  
+  print('Fit legs saved')
   
   
 
@@ -672,6 +686,12 @@ Jdark_slope_error = np.mean(
                                     np.log10(jv_slope_spline(v_masked))
                                   - np.log10(Jdark_slope_masked), 2))
 
+# Create DataFrame
+
+error_results_df = pd.DataFrame({'Value': [Jdark_error, Jdark_slope_error]},
+                                index = ['jv_error', 'slope_error']
+)
+
 
 
 """
@@ -737,14 +757,14 @@ if write_model_version == True:
 if write_parameter_values == True:
   
   # remove column names from string
-  circuit_parameters_table_temp = circuit_parameters_table.to_string()
-  rows = circuit_parameters_table_temp.split('\n')
+  circuit_parameters_temp = circuit_parameters_df.to_string()
+  rows = circuit_parameters_temp.split('\n')
   rows.pop(0)
-  circuit_parameters_table_string = '\n'.join(rows)
+  circuit_parameters_string = '\n'.join(rows)
   
   # Add table of circuit parameters to plot
   axs0.text(0.02, 0.025, 
-              circuit_parameters_table_string,   
+              circuit_parameters_string,   
               transform=axs0.transAxes, ha='left')
             
   # text box for jv error
@@ -815,7 +835,7 @@ if plot_slopes == True:
   if write_parameter_values == True:
     
     # remove column names from string
-    fit_results_string_temp = fit_results.to_string()
+    fit_results_string_temp = fit_volt_results_df.to_string()
     rows = fit_results_string_temp.split('\n')
     rows.pop(0)
     rows.pop(1)
@@ -847,15 +867,15 @@ if (plot_Vbi_point == True or
   
   # Plot points
   if plot_Vbi_point == True:
-    axs0.plot(Vbi_fit_result, fint_Jdark(Vbi_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
+    axs0.plot(Vbi_fit_result, fint_Jdark(Vbi_fit_result), marker='o', fillstyle='none', markersize=4, c='white', markeredgewidth=0.5)
     Vbi_text = axs0.text(Vbi_fit_result*np.power(10,-0.01), 
                           fint_Jdark(Vbi_fit_result)*np.power(10, plot_height/30), '$V_{bi}$', ha='right')
   if plot_Vo_point == True:
-    axs0.plot(Vo_fit_result, fint_Jdark(Vo_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
+    axs0.plot(Vo_fit_result, fint_Jdark(Vo_fit_result), marker='o', fillstyle='none', markersize=4, c='white', markeredgewidth=0.5)
     Vo_text = axs0.text(Vo_fit_result*np.power(10,-0.01), 
                         fint_Jdark(Vo_fit_result)*np.power(10, plot_height/30), '$V_{0}$', ha='right')
   if plot_Vr_point == True:
-    axs0.plot(Vr_fit_result, fint_Jdark(Vr_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
+    axs0.plot(Vr_fit_result, fint_Jdark(Vr_fit_result), marker='o', fillstyle='none', markersize=4, c='white', markeredgewidth=0.5)
     Vr_text = axs0.text(Vr_fit_result*np.power(10,-0.01), 
                         fint_Jdark(Vr_fit_result)*np.power(10, plot_height/30), '$V_{r}$', ha='right')
     
@@ -866,15 +886,15 @@ if (plot_Vbi_point == True or
     
     # Plot slope points
     if plot_Vbi_point == True:
-      axs1.plot(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
+      axs1.plot(Vbi_fit_result, fint_Jdark_slope(Vbi_fit_result), marker='o', fillstyle='none', markersize=4, c='white', markeredgewidth=0.5)
       Vbi_text = axs1.text(Vbi_fit_result*np.power(10,-0.02), 
                           fint_Jdark_slope(Vbi_fit_result) + plot_height/30, '$V_{bi}$', ha='right')
     if plot_Vo_point == True:
-      axs1.plot(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
+      axs1.plot(Vo_fit_result, fint_Jdark_slope(Vo_fit_result), marker='o', fillstyle='none', markersize=4, c='white', markeredgewidth=0.5)
       Vo_text = axs1.text(Vo_fit_result*np.power(10,0.02), 
                           fint_Jdark_slope(Vo_fit_result) + plot_height/30, '$V_{0}$', ha='left')
     if plot_Vr_point == True:
-      axs1.plot(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
+      axs1.plot(Vr_fit_result, fint_Jdark_slope(Vr_fit_result), marker='o', fillstyle='none', markersize=4, c='white', markeredgewidth=0.5)
       Vr_text = axs1.text(Vr_fit_result*np.power(10,0.02), 
                           fint_Jdark_slope(Vr_fit_result) + plot_height/30, '$V_{r}$', ha='left')
       
@@ -883,15 +903,15 @@ if (plot_Vbi_point == True or
     
     # Plot points
     if plot_Vbi_point == True:
-      axs2.plot(Vbi_fit_result, fint_Jdark_curvature(Vbi_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
+      axs2.plot(Vbi_fit_result, fint_Jdark_curvature(Vbi_fit_result), marker='o', fillstyle='none', markersize=4, c='white', markeredgewidth=0.5)
       Vbi_text = axs2.text(Vbi_fit_result*np.power(10,-0.02), 
                           fint_Jdark_curvature(Vbi_fit_result) + plot_height/30, '$V_{bi}$', ha='right')
     if plot_Vo_point == True:
-      axs2.plot(Vo_fit_result, fint_Jdark_curvature(Vo_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
+      axs2.plot(Vo_fit_result, fint_Jdark_curvature(Vo_fit_result), marker='o', fillstyle='none', markersize=4, c='white', markeredgewidth=0.5)
       Vo_text = axs2.text(Vo_fit_result*np.power(10,0.02), 
                           fint_Jdark_curvature(Vo_fit_result) + plot_height/30, '$V_{0}$', ha='left')
     if plot_Vr_point == True:
-      axs2.plot(Vr_fit_result, fint_Jdark_curvature(Vr_fit_result), marker='o', fillstyle='none', markersize=3, c='white')
+      axs2.plot(Vr_fit_result, fint_Jdark_curvature(Vr_fit_result), marker='o', fillstyle='none', markersize=4, c='white', markeredgewidth=0.5)
       Vr_text = axs2.text(Vr_fit_result*np.power(10,0.02), 
                           fint_Jdark_curvature(Vr_fit_result) + plot_height/30, '$V_{r}$', ha='left')
     
@@ -1079,7 +1099,7 @@ fit_Tsh_eff_params, pcov = curve_fit(
           fit_power, 
           Tsh_volt_drop, 
           np.power(JoTsh*Tsh_volt_drop/(Tsh_Vo+Tsh_d), tsh)/A,
-          p0=[1e-2,8],
+          p0=[1e6,20],
           method='lm'
 )
           
@@ -1093,13 +1113,13 @@ fit_Bd_eff_params, pcov = curve_fit(
           
 # Create DataFrame
 fit_eff_params = [fit_SC_eff_params[0], 
-                                 fit_Ts_eff_params[0], 
-                                 fit_Bsh_eff_params[0],
-                                 fit_Tsh_eff_params[0],
-                                 fit_Bd_eff_params[0]
+                  fit_Ts_eff_params[0], 
+                  fit_Bsh_eff_params[0],
+                  fit_Tsh_eff_params[0],
+                  fit_Bd_eff_params[0]
 ]
                                 
-fit_eff_results = pd.DataFrame(index = [
+fit_eff_results_df = pd.DataFrame(index = [
   'JoSC_eff',
   'JoTs_eff', 
   'JoBsh_eff',
@@ -1107,14 +1127,14 @@ fit_eff_results = pd.DataFrame(index = [
   'JoBd_eff',
 ])
 
-fit_eff_results['Value'] = fit_eff_params
+fit_eff_results_df['Value'] = fit_eff_params
 
 
 # Add table of effective coefficients to plot
 if write_parameter_values == True and plot_slopes == True:
   
   # remove column names from string
-  fit_eff_results_string_temp = fit_eff_results.to_string()
+  fit_eff_results_string_temp = fit_eff_results_df.to_string()
   rows = fit_eff_results_string_temp.split('\n')
   rows.pop(0)
   fit_eff_results_string = '\n'.join(rows)
@@ -1126,7 +1146,7 @@ if write_parameter_values == True and plot_slopes == True:
 
 
 
-print(fit_eff_results)
+
 
 
 
@@ -1305,8 +1325,39 @@ if plot_effective_voltage == True:
   
     # Add table of parameters to plot
     ax.text(0.02, 0, 
-              fit_eff_results.to_string(),   
+              fit_eff_results_df.to_string(),   
               transform=ax.transAxes, ha='left')
 
+
+
+
+
+'''
+Save all parameters
+'''
+    
+# Gathering all parameters into a single DataFrame
+all_results_df = pd.concat([fit_volt_results_df, 
+                            circuit_parameters_df, 
+                            error_results_df,
+                            fit_eff_results_df
+])
+
+print(all_results_df)
+                          
+if save_fit_branches == True:
+  
+  # check if file exits
+  filename = Path(folderpath/'Fit values .txt')
+  i = 1
+  while (new_filename := filename.with_stem(f"{filename.stem}{i}")).exists():
+    i += 1
+    
+  # save curve
+  all_results_df.to_csv(new_filename, sep='\t', index=False)
+  
+  print('Parameters Saved')
+  
+  
 
 plt.show()
