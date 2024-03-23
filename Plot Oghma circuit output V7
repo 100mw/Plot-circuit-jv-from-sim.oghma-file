@@ -20,8 +20,12 @@ import re
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 
+#files = Path(
+# "/Users/alexiarango/Documents/Oghma/Circuit V15/circuit_v15 c60 40nm d14 down/"
+#)
+
 files = Path(
-  "/Users/alexiarango/Documents/Oghma/Circuit V13-8/circuit_v13-8 c60 40nm d14 up/"
+  "/Users/alexiarango/Downloads/JV trap limited 06232023 1_2/"
 )
 
 ## Windows:
@@ -45,7 +49,7 @@ T = 300					          # temperature
 Set plotting attributes
 '''
 
-slope_smoothing = 3
+slope_smoothing = 1.1
 curvature_smoothing = 3
 mask_error_voltage = 0.2
 
@@ -59,7 +63,7 @@ elements_line_color = 'gray'
 linewidth = 1
 
 plot_slopes = True
-plot_voltage_curves = True
+plot_voltage_curves = False
 plot_effective_voltage = False 
 
 write_model_version = True
@@ -75,7 +79,7 @@ plot_height = 8.3
 show_circuit_legs = 5
 fill_under_curve = 0
 
-model_version = 'Model V13-8' 
+model_version = 'Model V13-9'
 
 save_fit_branches = True
 
@@ -703,7 +707,7 @@ if black_background == True:
   plt.style.use('dark_background')							#black background
 
 if plot_slopes == True:
-  fig, (axs0, axs1, axs2)   = plt.subplots(3, 1, sharex=True, figsize=(plot_width, plot_height), dpi=dpi)
+  fig, (axs0, axs1, axs2) = plt.subplots(3, 1, sharex=True, figsize=(plot_width, plot_height), dpi=dpi)
   
   #adjust plot margins
   fig.subplots_adjust(top=0.995, right=0.99, bottom=0.055, left=0.11, hspace=0)
@@ -711,7 +715,7 @@ if plot_slopes == True:
 else:
   fig, axs0 = plt.subplots(1, 1, sharex=True, figsize=(plot_width, plot_height), dpi=dpi, layout='constrained')
 
-fig.canvas.manager.set_window_title(files.name) 
+fig.canvas.manager.set_window_title(files.name + " " + str(i)) 
 
 # Set up iv plot
 axs0.set_ylabel("Current density [A/m$^2$]")
@@ -789,8 +793,8 @@ if plot_slopes == True:
   # set axis limits
   
   # Find index above Vbi
-  nearest_Vbi_index = min(range(len(v_data)), key=lambda i: abs(v_data[i] - Vbi))
-  
+  nearest_Vbi_index = min(range(len(v_data)), key=lambda i: abs(v_data[i] - Vbi + 0.3))
+    
   # Find max/min values only above Vbi
   axs1.set_ylim(			
                 0.9,
@@ -801,6 +805,8 @@ if plot_slopes == True:
                   1.15*np.nanmin(jv_curvature[nearest_Vbi_index :]),
                   1.15*np.nanmax(jv_curvature[nearest_Vbi_index :])  
   )
+  
+  print(np.nanmax(jv_curvature[nearest_Vbi_index :]))
   
   # Add gradient of raw data to slope plot
   axs1.plot(v_data, jv_slope, linewidth=0, color=point_color, marker='o', markersize=1)
@@ -1091,7 +1097,7 @@ fit_Bsh_eff_params, pcov = curve_fit(
           fit_power, 
           block_shunt_volt_drop, 
           np.power(JoBsh*block_shunt_volt_drop/(Bsh_Vo+Bsh_d), bsh)/A,
-          p0=[1e4,2],
+          p0=[1e7,2],
           method='lm'
 )
 
