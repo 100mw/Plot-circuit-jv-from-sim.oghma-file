@@ -74,6 +74,7 @@ Extract current and voltage drops across circuit elements from netlist folders
 netlist = files / "netlist/"
 folders = list(netlist.glob('*/'))
 
+
 # Iterate through each folder and read circuit_labels.dat files
 
 #create empty DataFrame
@@ -81,27 +82,36 @@ data_df = pd.DataFrame()
 
 #iterate over list with length = number of folders
 for x in range(len(folders)):
-  
-  #get folder name, step number
-	step = int(folders[x].name)
-  
-  #do not use .DS_Store file
-	if step == ".DS_Store" or step == "results" or step == "data.json":
-		continue
-  
-	temp = pd.DataFrame()
-  
-  #Read circuit_labels into DataFrame
-	temp = pd.read_json(folders[x] / "circuit_labels.dat")
-  
-  #open data.json file
-	with open(folders[x] / "data.json", 'r') as f:
-		data = json.load(f)
-  
 
+  #get folder name, step number
+  step = int(folders[x].name)
+    
+  #do not use .DS_Store file
+  if step == ".DS_Store" or step == "results" or step == "data.json":
+      continue
+
+  temp = pd.DataFrame()
+
+  #Read circuit_labels into DataFrame
+  temp = pd.read_json(folders[x] / "circuit_labels.dat")
+
+  #open data.json file
+  with open(folders[x] / "data.json", 'r') as f:
+    folder_data = json.load(f)
+
+  # get voltage from data.json
+  voltage = folder_data['voltage']
+
+  # create list of voltages
+  voltage_list = [voltage] * len(temp.columns)
   
-  #append new row to DataFrame
-	data_df = pd.concat([data_df, temp])
+  
+  
+  # append new voltage row to temp
+  temp.loc['voltage'] = voltage_list
+
+  #append new rows to DataFrame
+  data_df = pd.concat([data_df, temp])
 
 # Transpose DataFrame
 #data_df.sort_index(axis=0,kind='stable',inplace=True)
@@ -109,7 +119,7 @@ for x in range(len(folders)):
 # drop extra segments column
 data_df = data_df.drop(columns=['segments'])
 
-print(data_df)
+
 
 
 
@@ -143,10 +153,12 @@ for i, column in enumerate(data_df.columns):
 	data_df = data_df.rename(columns={column: titles[i]})
 
 print(data_df)
+print(len(data_df.columns))
 
 
-
-'''Set up ploting'''
+'''
+Set up ploting
+'''
 
 # Create figure
 if black_background == True:
@@ -219,7 +231,7 @@ for i in range(len(uid)):
     current_df = data_df.loc['i', column_title]
     current = current_df.values / A
     current = np.sort(current)
-    volt_drop = data_df.loc['v0', column_title].values - data_df.loc['v1', column_title].values
+    volt_drop = data_df.loc['voltage', column_title].values
     volt_drop = np.sort(volt_drop)
     axs0.plot(volt_drop,
               current,
@@ -227,14 +239,6 @@ for i in range(len(uid)):
               linewidth=linewidth/5)
 
 
-print(column_title)
-print(volt_drop)
-print(current)
-
-axs0.plot(volt_drop,
-              current,
-              color = line_color,
-              linewidth=linewidth/5)
 
 plt.show()
 
