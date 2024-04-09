@@ -34,7 +34,7 @@ Set plotting attributes
 
 black_background = True
 
-plot_slopes = False
+plot_slopes = True
 
 plot_width = 7
 plot_height = 9
@@ -130,14 +130,10 @@ Determine circuit element titles based on uid and replace segment column titles
 # find uid data_df
 uid=data_df.iloc[1].to_list()
 
-print(uid)
-
 # turn circuit_labels uid into sim.json segment#
 segments=[]
 for x in uid:
 	segments.append(f"segment{x}")
-
-print(segments)
 
 # open sim.json and find segment names
 myfile = open(files / 'sim.json')
@@ -145,15 +141,14 @@ sim = json.load(myfile)
 titles=[]
 for x in segments:
 	titles.append(sim['circuit']['circuit_diagram'][x]['name'])
-	
-print(titles)
+myfile.close()
+
 
 # rename dataframe columns
 for i, column in enumerate(data_df.columns):
 	data_df = data_df.rename(columns={column: titles[i]})
 
 print(data_df)
-print(len(data_df.columns))
 
 
 '''
@@ -165,7 +160,13 @@ if black_background == True:
   plt.style.use('dark_background')							#black background
 
 if plot_slopes == True:
-  fig, (axs0, axs1, axs2)   = plt.subplots(3, 1, sharex=True, figsize=(plot_width, plot_height), gridspec_kw={'height_ratios':[1,1,0.5]}, dpi=dpi)
+  fig, (axs0, axs1) = plt.subplots(2, 
+                                   1, 
+                                   sharex=True, 
+                                   figsize=(plot_width, 
+                                            plot_height), 
+                                   gridspec_kw={'height_ratios':[1,0.5]}, 
+                                   dpi=dpi)
   
   #adjust plot margins
   fig.subplots_adjust(top=0.995, right=0.99, bottom=0.055, left=0.11, hspace=0)
@@ -173,6 +174,7 @@ if plot_slopes == True:
 else:
   fig, axs0 = plt.subplots(1, 1, sharex=True, figsize=(plot_width, plot_height), dpi=dpi, layout='constrained')
 
+# Set title
 fig.canvas.manager.set_window_title(files.name + " " + str(i)) 
 
 # Set up iv plot
@@ -180,8 +182,13 @@ axs0.set_ylabel("Current density [A/m$^2$]")
 axs0.set_xscale("log")
 axs0.set_yscale("log")
 
-if plot_slopes == False:
-  axs0.set_xlabel("Voltage [V]")  
+# Label axes
+if plot_slopes == True:
+  axs1.set_ylabel("Slope of log-log j-v curve")
+  axs1.set_xlabel("Voltage [V]")
+
+else:
+    axs0.set_xlabel("Voltage [V]")
 
 
 # set axis limits
@@ -218,6 +225,15 @@ if write_parameter_data_df == True:
   #axs0.text(0.5, 0.025, 'Error = ' + "{:.3e}".format(Jdark_error), transform=axs0.transAxes, ha='center')
 
 
+
+'''
+Find slopes
+'''
+
+
+
+
+
 '''
 Add data to plot
 '''
@@ -225,18 +241,48 @@ Add data to plot
 # Add raw data to iv plot
 axs0.plot(v_data, j_data, linewidth=0, color=point_color, marker='o', markersize=1)
 
+# find voltage
+voltage = data_df.loc['voltage', data_df.columns[0]].values
+voltage = np.sort(voltage)
+voltage = np.array(voltage, dtype=float)
+
+
 # add fit to plot
 for i in range(len(uid)):
     column_title = data_df.columns[i]
     current_df = data_df.loc['i', column_title]
     current = current_df.values / A
     current = np.sort(current)
-    volt_drop = data_df.loc['voltage', column_title].values
-    volt_drop = np.sort(volt_drop)
-    axs0.plot(volt_drop,
+    axs0.plot(voltage,
               current,
               color = line_color,
               linewidth=linewidth/5)
+
+
+
+
+# Add slope data to iv plot
+if plot_slopes == True:
+  
+  # calculate slope of data
+  j_data_slope = np.gradient(np.log10(j_data), 
+                             np.log10(v_data), edge_order=2)
+  
+  # plot slope of data
+  axs1.plot(v_data, j_data_slope, linewidth=0, color=point_color, marker='o', markersize=1)
+
+  # add slope of fits to plot
+  for i in range(len(uid)):
+      column_title = data_df.columns[i]
+      current_df = data_df.loc['i', column_title]
+      current = current_df.values / A
+      current = np.sort(current)
+      current_np = np.array(current, dtype=float)
+      slope = np.gradient(np.log10(current_np), np.log10(voltage), edge_order=2)
+      axs1.plot(voltage,
+                slope,
+                color = line_color,
+                linewidth=linewidth/5)
 
 
 
