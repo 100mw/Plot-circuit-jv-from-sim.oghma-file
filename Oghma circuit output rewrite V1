@@ -17,15 +17,16 @@ model_version = 'Model V19-1'
 A = 0.00000121	         
 
 # Type path to folder here (Mac/Windows/Unix compatible):
+sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-1/circuit_v19 c60 40nm d14 up/"
 
-files = Path(
-  "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-1/circuit_v19 c60 40nm d14 up/"
-)
+# Windows or Mac machine?
+Mac = True
 
-## Windows:
-#files = Path(
-# "C:/Users/aarango/Documents/circuit_v12-3 c60 30nm d10 up"
-#)
+# List names of circuit elements to plot:
+elements = ['Rs', 'Rc', 'Rb', 'Rsh']
+
+# List names of circuit sub-elements to plot:
+sub_elements = ['St', 'Tt']
 
 
 '''
@@ -35,6 +36,8 @@ Set plotting attributes
 black_background = True
 
 plot_slopes = True
+
+noise_threshold = 0.4
 
 plot_width = 7
 plot_height = 9
@@ -50,9 +53,21 @@ linewidth = 2
 write_model_version = False
 write_parameter_data_df = False
 
+
+
+
 '''
 Open raw jv data file and create numpy array
 '''
+
+if Mac == True:
+    files = Path(sim_folder)
+else: 
+  sim_folder = sim_folder.replace('\\','/')
+  files = Path(sim_folder)
+
+print(files)
+
 
 data_raw = pd.read_csv(files / "fit_data0.inp", sep="\t", skiprows=1, header=None)
 data_raw = data_raw.loc[(data_raw!=0).any(axis=1)]
@@ -148,6 +163,8 @@ myfile.close()
 for i, column in enumerate(data_df.columns):
 	data_df = data_df.rename(columns={column: titles[i]})
 
+
+pd.set_option('display.max_columns', None)
 print(data_df)
 
 
@@ -191,18 +208,6 @@ else:
     axs0.set_xlabel("Voltage [V]")
 
 
-# set axis limits
-
-axs0.set_xlim(
-              v_data[0],
-              v_data[-1]
-)
-
-axs0.set_ylim(			
-                j_data.min()*0.1,			# grab min from data
-                j_data.max()*2				# grab max from data
-)
-
 if write_model_version == True:
   
   #text box for model version
@@ -221,10 +226,6 @@ if write_parameter_data_df == True:
               circuit_parameters_string,   
               transform=axs0.transAxes, ha='left', va='top')
             
-  # text box for jv error
-  #axs0.text(0.5, 0.025, 'Error = ' + "{:.3e}".format(Jdark_error), transform=axs0.transAxes, ha='center')
-
-
 
 '''
 Find slopes
@@ -248,16 +249,27 @@ voltage = np.array(voltage, dtype=float)
 
 
 # add fit to plot
-for i in range(len(uid)):
-    column_title = data_df.columns[i]
-    current_df = data_df.loc['i', column_title]
+columns_to_plot = elements
+
+for i in range(len(columns_to_plot)):
+    current_df = data_df.loc['i', columns_to_plot[i]]
     current = current_df.values / A
     current = np.sort(current)
     axs0.plot(voltage,
               current,
               color = line_color,
               linewidth=linewidth/5)
-
+    
+columns_to_plot = sub_elements
+    
+for i in range(len(columns_to_plot)):
+    current_df = data_df.loc['i', columns_to_plot[i]]
+    current = current_df.values / A
+    current = np.sort(current)
+    axs0.plot(voltage,
+              current,
+              color = line_color,
+              linewidth=linewidth/10)
 
 
 
@@ -272,9 +284,10 @@ if plot_slopes == True:
   axs1.plot(v_data, j_data_slope, linewidth=0, color=point_color, marker='o', markersize=1)
 
   # add slope of fits to plot
-  for i in range(len(uid)):
-      column_title = data_df.columns[i]
-      current_df = data_df.loc['i', column_title]
+  columns_to_plot = elements
+
+  for i in range(len(columns_to_plot)):
+      current_df = data_df.loc['i', columns_to_plot[i]]
       current = current_df.values / A
       current = np.sort(current)
       current_np = np.array(current, dtype=float)
@@ -283,6 +296,47 @@ if plot_slopes == True:
                 slope,
                 color = line_color,
                 linewidth=linewidth/5)
+      
+  columns_to_plot = sub_elements
+
+  for i in range(len(columns_to_plot)):
+      current_df = data_df.loc['i', columns_to_plot[i]]
+      current = current_df.values / A
+      current = np.sort(current)
+      current_np = np.array(current, dtype=float)
+      slope = np.gradient(np.log10(current_np), np.log10(voltage), edge_order=2)
+      axs1.plot(voltage,
+                slope,
+                color = line_color,
+                linewidth=linewidth/10)
+
+
+
+
+
+'''
+Set axis limits
+'''
+
+axs0.set_xlim(
+              v_data[0],
+              v_data[-1]
+)
+
+axs0.set_ylim(			
+                j_data.min()*0.1,			# grab min from data
+                j_data.max()*2				# grab max from data
+)
+
+if plot_slopes == True:
+
+  # Find index above noise threshold
+  noise_threshold_index = min(range(len(v_data)), key=lambda i: abs(v_data[i] - noise_threshold))
+  
+  axs1.set_ylim(			
+                0.5,
+                np.max(j_data_slope[noise_threshold_index :])*1.1				# grab max from data
+  )
 
 
 
