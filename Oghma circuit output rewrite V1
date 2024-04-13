@@ -22,16 +22,90 @@ sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-1/circuit_v19 c
 # Windows or Mac machine?
 Mac = True
 
-# List names of circuit elements to plot:
-elements = ['Rs', 'Rc', 'Rb', 'Rsh']
 
-# List names of circuit sub-elements to plot:
-sub_elements = ['St', 'Tt']
 
 
 '''
 Set plotting attributes
 '''
+
+
+# List names of circuit elements to plot:
+elements = {
+   'Rs': {
+      'color': (1, 0, 1),
+      'linewidth': 1,
+      'linestyle': '-',
+      'label': 'Fit'
+   }, 
+   'Rc': {
+      'color': (0.2, 0.5, 0.2),
+      'linewidth': 1,
+      'linestyle': '-',
+      'label': 'Contact'
+   }, 
+   'Rb': {
+      'color': (0.3, 0.4, 0.7),
+      'linewidth': 1,
+      'linestyle': '-',
+      'label': 'Barrier'
+   }, 
+   'Rsh': {
+      'color': (1, 0.2, 0.2),
+      'linewidth': 1,
+      'linestyle': '-',
+      'label': 'Shunt'
+   },
+    'St': {
+      'color': (0, 1, 0.7),
+      'linewidth': 1,
+      'linestyle': ':',
+      'label': 'Transport SCLC'
+   },
+    'Tt': {
+      'color': (0, 1, 0.7),
+      'linewidth': 1,
+      'linestyle': '--',
+      'label': 'Transport TLC'
+   },
+    'I': {
+      'color': (0.7, 1, 0),
+      'linewidth': 1,
+      'linestyle': ':',
+      'label': 'ILC'
+   },
+    'Id': {
+      'color': (0.7, 1, 0),
+      'linewidth': 1,
+      'linestyle': '--',
+      'label': 'Idiode'
+   },
+    'Tsh': {
+      'color': (1, 0, 0),
+      'linewidth': 1,
+      'linestyle': '--',
+      'label': 'Shunt TLC'
+   },
+    'Rshsh': {
+      'color': (1, 0, 0),
+      'linewidth': 1,
+      'linestyle': '-.',
+      'label': 'Shunt R'
+   }, 
+   'Rbsh': {
+      'color': (0.3, 0.4, 0.7),
+      'linewidth': 1,
+      'linestyle': '-.',
+      'label': 'Barrier R'
+   }, 
+   'Sb': {
+      'color': (0.3, 0.4, 0.7),
+      'linewidth': 1,
+      'linestyle': ':',
+      'label': 'Barrier SCLC'
+   }
+}
+
 
 black_background = True
 
@@ -44,11 +118,10 @@ plot_height = 9
 dpi = 120
 
 line_color = 'white'
-data_color = 'darkcyan'
-point_color = (0.8, 0.8, 0)
-fit_color = 'deeppink'
-elements_line_color = 'gray'
-linewidth = 2
+
+# edit data display properties
+point_color = (1, 1, 0)
+point_size = 1
 
 write_model_version = False
 write_parameter_data_df = False
@@ -65,8 +138,6 @@ if Mac == True:
 else: 
   sim_folder = sim_folder.replace('\\','/')
   files = Path(sim_folder)
-
-print(files)
 
 
 data_raw = pd.read_csv(files / "fit_data0.inp", sep="\t", skiprows=1, header=None)
@@ -168,9 +239,13 @@ pd.set_option('display.max_columns', None)
 print(data_df)
 
 
+
+
 '''
 Set up ploting
 '''
+
+#plt.ion()
 
 # Create figure
 if black_background == True:
@@ -227,89 +302,59 @@ if write_parameter_data_df == True:
               transform=axs0.transAxes, ha='left', va='top')
             
 
-'''
-Find slopes
-'''
-
-
-
-
 
 '''
 Add data to plot
 '''
-
-# Add raw data to iv plot
-axs0.plot(v_data, j_data, linewidth=0, color=point_color, marker='o', markersize=1)
 
 # find voltage
 voltage = data_df.loc['voltage', data_df.columns[0]].values
 voltage = np.sort(voltage)
 voltage = np.array(voltage, dtype=float)
 
-
 # add fit to plot
-columns_to_plot = elements
-
-for i in range(len(columns_to_plot)):
-    current_df = data_df.loc['i', columns_to_plot[i]]
+for name in elements:
+    current_df = data_df.loc['i', name]
     current = current_df.values / A
     current = np.sort(current)
     axs0.plot(voltage,
               current,
-              color = line_color,
-              linewidth=linewidth/5)
-    
-columns_to_plot = sub_elements
-    
-for i in range(len(columns_to_plot)):
-    current_df = data_df.loc['i', columns_to_plot[i]]
-    current = current_df.values / A
-    current = np.sort(current)
-    axs0.plot(voltage,
-              current,
-              color = line_color,
-              linewidth=linewidth/10)
+              color = elements[name]['color'],
+              linewidth = elements[name]['linewidth'], 
+              linestyle = elements[name]['linestyle'],
+              label = elements[name]['label']
+              )
+
+# Add raw data to iv plot
+axs0.plot(v_data, j_data, linewidth=0, color=point_color, marker='o', markersize=point_size)
 
 
 
-# Add slope data to iv plot
+
+# Add log-log slope to plot
 if plot_slopes == True:
   
   # calculate slope of data
   j_data_slope = np.gradient(np.log10(j_data), 
                              np.log10(v_data), edge_order=2)
-  
-  # plot slope of data
-  axs1.plot(v_data, j_data_slope, linewidth=0, color=point_color, marker='o', markersize=1)
 
   # add slope of fits to plot
-  columns_to_plot = elements
-
-  for i in range(len(columns_to_plot)):
-      current_df = data_df.loc['i', columns_to_plot[i]]
+  for name in elements:
+      current_df = data_df.loc['i', name]
       current = current_df.values / A
       current = np.sort(current)
+      # find log-log slope of current
       current_np = np.array(current, dtype=float)
       slope = np.gradient(np.log10(current_np), np.log10(voltage), edge_order=2)
       axs1.plot(voltage,
                 slope,
-                color = line_color,
-                linewidth=linewidth/5)
+                color = elements[name]['color'],
+                linewidth = elements[name]['linewidth'], 
+                linestyle = elements[name]['linestyle']
+                )
       
-  columns_to_plot = sub_elements
-
-  for i in range(len(columns_to_plot)):
-      current_df = data_df.loc['i', columns_to_plot[i]]
-      current = current_df.values / A
-      current = np.sort(current)
-      current_np = np.array(current, dtype=float)
-      slope = np.gradient(np.log10(current_np), np.log10(voltage), edge_order=2)
-      axs1.plot(voltage,
-                slope,
-                color = line_color,
-                linewidth=linewidth/10)
-
+  # plot slope raw data
+  axs1.plot(v_data, j_data_slope, linewidth=0, color=point_color, marker='o', markersize=point_size)
 
 
 
@@ -332,16 +377,13 @@ if plot_slopes == True:
 
   # Find index above noise threshold
   noise_threshold_index = min(range(len(v_data)), key=lambda i: abs(v_data[i] - noise_threshold))
-  
+
   axs1.set_ylim(			
                 0.5,
                 np.max(j_data_slope[noise_threshold_index :])*1.1				# grab max from data
   )
 
 
+axs0.legend()
 
 plt.show()
-
-# Add spline
-#axs0.plot(v_data_masked, jv_spline(v_data_masked), linewidth=linewidth, color=data_color)
-
