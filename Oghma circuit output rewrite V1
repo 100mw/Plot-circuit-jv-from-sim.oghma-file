@@ -9,7 +9,6 @@ from scipy.optimize import curve_fit
 from scipy import interpolate
 from scipy.interpolate import LSQUnivariateSpline
 import re
-import plotly.express as px
 
 model_version = 'Model V19-1' 
 
@@ -17,7 +16,8 @@ model_version = 'Model V19-1'
 A = 0.00000121	         
 
 # Type path to folder here (Mac/Windows/Unix compatible):
-sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-1/circuit_v19 c60 40nm d14 up/"
+#sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-1/circuit_v19 c60 40nm d14 up/"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v19-2 c60 60nm d14 up 2"
 
 # Windows or Mac machine?
 Mac = True
@@ -33,73 +33,73 @@ Set plotting attributes
 # List names of circuit elements to plot:
 elements = {
    'Rs': {
-      'color': (1, 0, 1),
-      'linewidth': 1,
+      'color': '#ff00f7',
+      'linewidth': 2,
       'linestyle': '-',
       'label': 'Fit'
    }, 
    'Rc': {
-      'color': (0.2, 0.5, 0.2),
+      'color': '#c10000',
       'linewidth': 1,
       'linestyle': '-',
       'label': 'Contact'
-   }, 
-   'Rb': {
-      'color': (0.3, 0.4, 0.7),
-      'linewidth': 1,
-      'linestyle': '-',
-      'label': 'Barrier'
-   }, 
-   'Rsh': {
-      'color': (1, 0.2, 0.2),
-      'linewidth': 1,
-      'linestyle': '-',
-      'label': 'Shunt'
    },
     'St': {
-      'color': (0, 1, 0.7),
+      'color': '#c10000',
       'linewidth': 1,
       'linestyle': ':',
       'label': 'Transport SCLC'
    },
     'Tt': {
-      'color': (0, 1, 0.7),
+      'color': '#c10000',
       'linewidth': 1,
       'linestyle': '--',
       'label': 'Transport TLC'
    },
     'I': {
-      'color': (0.7, 1, 0),
+      'color': '#ff8400',
       'linewidth': 1,
       'linestyle': ':',
       'label': 'ILC'
    },
     'Id': {
-      'color': (0.7, 1, 0),
+      'color': '#ff8400',
       'linewidth': 1,
       'linestyle': '--',
       'label': 'Idiode'
+   }, 
+   'Rsh': {
+      'color': '#437601',
+      'linewidth': 1,
+      'linestyle': '-',
+      'label': 'Shunt'
    },
     'Tsh': {
-      'color': (1, 0, 0),
+      'color': '#437601',
       'linewidth': 1,
       'linestyle': '--',
       'label': 'Shunt TLC'
    },
     'Rshsh': {
-      'color': (1, 0, 0),
+      'color': '#437601',
       'linewidth': 1,
       'linestyle': '-.',
-      'label': 'Shunt R'
+      'label': 'Shunt Rsh'
+    }, 
+   'Rb': {
+      'color': '#008394',
+      'linewidth': 1,
+      'linestyle': '-',
+      'label': 'Barrier'
    }, 
    'Rbsh': {
-      'color': (0.3, 0.4, 0.7),
+      'color': '#008394',
       'linewidth': 1,
       'linestyle': '-.',
-      'label': 'Barrier R'
+      'label': 'Barrier Rsh'
    }, 
    'Sb': {
-      'color': (0.3, 0.4, 0.7),
+      'color': '#008394',
       'linewidth': 1,
       'linestyle': ':',
       'label': 'Barrier SCLC'
