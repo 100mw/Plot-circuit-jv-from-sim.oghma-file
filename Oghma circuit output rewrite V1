@@ -8,7 +8,6 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy import interpolate
 from scipy.interpolate import LSQUnivariateSpline
-import re
 
 model_version = 'Model V19-1' 
 
@@ -16,17 +15,16 @@ model_version = 'Model V19-1'
 A = 0.00000121	         
 
 # Type path to folder here (Mac/Windows/Unix compatible):
-#sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-1/circuit_v19 c60 40nm d14 up/"
-sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v19-2 c60 60nm d14 up 2"
+sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-1/circuit_v19 c60 40nm d14 up/"
+#sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v19-2 c60 60nm d14 up 2"
 
-# Windows or Mac machine?
-Mac = True
+
 
 
 
 
 '''
-Set plotting attributes
+Set plotting attributes below
 '''
 
 
@@ -108,6 +106,7 @@ elements = {
 
 
 black_background = True
+line_color = 'white'
 
 plot_slopes = True
 
@@ -116,8 +115,6 @@ noise_threshold = 0.4
 plot_width = 7
 plot_height = 9
 dpi = 120
-
-line_color = 'white'
 
 # edit data display properties
 point_color = (1, 1, 0)
@@ -129,19 +126,20 @@ write_parameter_data_df = False
 
 
 
+
+
 '''
 Open raw jv data file and create numpy array
 '''
 
-if Mac == True:
-    files = Path(sim_folder)
-else: 
-  sim_folder = sim_folder.replace('\\','/')
-  files = Path(sim_folder)
+# create path to sim folder
+files = Path(sim_folder)
 
-
+# open fit_data file containing raw data
 data_raw = pd.read_csv(files / "fit_data0.inp", sep="\t", skiprows=1, header=None)
 data_raw = data_raw.loc[(data_raw!=0).any(axis=1)]
+
+# create numpy arrays from raw data
 v_data = data_raw[data_raw.columns[0]].to_numpy()
 j_data = data_raw[data_raw.columns[1]].to_numpy()
 
@@ -149,6 +147,8 @@ j_data = data_raw[data_raw.columns[1]].to_numpy()
 if v_data[0] < 1e-10:
   v_data = np.delete(v_data, [0])
   j_data = np.delete(j_data, [0])
+
+
 
 
 
@@ -191,8 +191,6 @@ for x in range(len(folders)):
   # create list of voltages
   voltage_list = [voltage] * len(temp.columns)
   
-  
-  
   # append new voltage row to temp
   temp.loc['voltage'] = voltage_list
 
@@ -221,22 +219,79 @@ segments=[]
 for x in uid:
 	segments.append(f"segment{x}")
 
-# open sim.json and find segment names
+# open sim.json
 myfile = open(files / 'sim.json')
 sim = json.load(myfile)
+
+# grab "circuit_diagram" dictionary
+circuit = sim["circuit"]
+circuit_diagram = circuit["circuit_diagram"]
+del circuit_diagram['segments']
+
+# create list of circuit element names
 titles=[]
 for x in segments:
-	titles.append(sim['circuit']['circuit_diagram'][x]['name'])
+	titles.append(circuit_diagram[x]['name'])
 myfile.close()
 
-
-# rename dataframe columns
+# rename dataframe column titles
 for i, column in enumerate(data_df.columns):
 	data_df = data_df.rename(columns={column: titles[i]})
 
-
 pd.set_option('display.max_columns', None)
-print(data_df)
+#print(data_df)
+
+
+
+
+
+
+'''
+Read circuit element parameters from circuit_diagram dictionary
+'''
+
+# create dataframes
+resistors_df = pd.DataFrame(columns = ['R [Ohms]'])
+powers_df = pd.DataFrame(columns = ['I0', 'Power'])
+diodes_df = pd.DataFrame(columns = ['I0', 'n'])
+barriers_df = pd.DataFrame(columns = ['I0', 'b0'])
+
+for x in circuit_diagram:
+
+  # find resistors
+  if circuit_diagram[x]['comp'] == 'resistor':
+     name = circuit_diagram[x]['name']
+     resistance = circuit_diagram[x]['R']
+     resistors_df.loc[name] = resistance
+
+  # find power law elements   
+  elif circuit_diagram[x]['comp'] == 'power':
+     name = circuit_diagram[x]['name']
+     I0 = circuit_diagram[x]['I0']
+     power = circuit_diagram[x]['c']
+     powers_df.loc[name] = [I0, power]
+
+  # find diode elements   
+  elif circuit_diagram[x]['comp'] == 'diode':
+     name = circuit_diagram[x]['name']
+     I0 = circuit_diagram[x]['I0']
+     nid = circuit_diagram[x]['nid']
+     diodes_df.loc[name] = [I0, nid]
+
+  # find barrier elements   
+  elif circuit_diagram[x]['comp'] == 'barrier':
+     name = circuit_diagram[x]['name']
+     I0 = circuit_diagram[x]['I0']
+     b0 = circuit_diagram[x]['b0']
+     barriers_df.loc[name] = [I0, b0]
+
+
+
+print(resistors_df)
+print(powers_df)
+print(diodes_df)
+print(barriers_df)
+
 
 
 
@@ -301,6 +356,9 @@ if write_parameter_data_df == True:
               circuit_parameters_string,   
               transform=axs0.transAxes, ha='left', va='top')
             
+
+
+
 
 
 '''
