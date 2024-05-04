@@ -6,6 +6,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import re
+import pickle
 
 model_version = 'Model V19-2' 
 
@@ -126,6 +127,8 @@ calculate_mobility = True
 epsilon0 = 8.854e-12
 epsilon_C60 = 2.3
 Area = 0.00000121	
+
+save = False
 
 
 '''
@@ -286,12 +289,55 @@ for x in circuit_diagram:
      barriers_df.loc[name] = [I0, b0]
 
 
-
+print()
 print(resistors_df)
+print()
 print(powers_df)
+print()
 print(diodes_df)
+print()
 print(barriers_df)
+print()
 
+
+
+
+
+'''
+Save circuit element parameters
+'''
+
+if save == True:
+   
+  # convert each dataframe to a dictionary
+  resistors_dict = resistors_df.to_dict()
+  powers_dict = powers_df.to_dict()
+  diodes_dict = diodes_df.to_dict()
+  barriers_dict = barriers_df.to_dict()
+
+  # Create a dictionary to store these dictionaries
+  save_dict = {'resistors': resistors_dict, 
+                    'powers': powers_dict, 
+                    'diodes': diodes_dict,
+                    'barriers': barriers_dict}
+
+  # path of new folder for results
+  folderpath = files.parent / (files.stem + ' results')
+  
+  # make new folder
+  folderpath.mkdir(parents=True, exist_ok=True)
+
+  # check if file exits
+  filename = Path(folderpath/'Fit values .txt')
+  i = 1
+  while (new_filename := filename.with_stem(f"{filename.stem}{i}")).exists():
+    i += 1
+  
+  # Save dictionary to a file using Pickle
+  with open('save_dict.pkl', 'wb') as f:
+    pickle.dump(save_dict, f)
+
+  print('Parameters Saved')
 
 
 
@@ -312,7 +358,7 @@ if calculate_mobility == True:
   I0_mu = powers_df.loc['St', 'I0']
   mu = 8/9/epsilon_C60/epsilon0*np.power(thickness_C60*1e-9, 3)*np.power(I0_mu,2)/Area
   
-  print("mobility = ",round(mu,10), "m^2/Vs")
+  print('\n',"mobility =",round(mu,10), "m^2/Vs",'\n')
 
 
 
@@ -455,3 +501,7 @@ if plot_slopes == True:
 axs0.legend()
 
 plt.show()
+
+
+
+
