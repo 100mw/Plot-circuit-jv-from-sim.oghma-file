@@ -6,15 +6,13 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import re
-import pickle
 
 model_version = 'Model V19-2' 
 
-# device area [m^2]
-A = 0.00000121	         
+    
 
 # Type path to folder here (Mac/Windows/Unix compatible):
-sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-1/circuit_v19 c60 40nm d14 up/"
+sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/v19-2 c60 60nm d14 down/"
 #sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v19-2 c60 60nm d14 up 2"
 
 
@@ -30,109 +28,54 @@ Select elements to plot and set plotting attributes below
 # List names of circuit elements to plot:
 
 elements = {
-   'Rs': {
-      'color': '#ff00f7',
-      'linewidth': 2,
-      'linestyle': '-',
-      'label': 'Fit'
-   }, 
-   'Rc': {
-      'color': '#c10000',
-      'linewidth': 1,
-      'linestyle': '-',
-      'label': 'Contact'
-   },
-    'St': {
-      'color': '#c10000',
-      'linewidth': 1,
-      'linestyle': ':',
-      'label': 'Transport SCLC'
-   },
-    'Tt': {
-      'color': '#c10000',
-      'linewidth': 1,
-      'linestyle': '--',
-      'label': 'Transport TLC'
-   },
-    'I': {
-      'color': '#ff8400',
-      'linewidth': 1,
-      'linestyle': ':',
-      'label': 'ILC'
-   },
-    'Id': {
-      'color': '#ff8400',
-      'linewidth': 1,
-      'linestyle': '--',
-      'label': 'Idiode'
-   }, 
-   'Rsh': {
-      'color': '#437601',
-      'linewidth': 1,
-      'linestyle': '-',
-      'label': 'Shunt'
-   },
-    'Tsh': {
-      'color': '#437601',
-      'linewidth': 1,
-      'linestyle': '--',
-      'label': 'Shunt TLC'
-   },
-    'Rshsh': {
-      'color': '#437601',
-      'linewidth': 1,
-      'linestyle': '-.',
-      'label': 'Shunt Rsh'
-    }, 
-   'Rb': {
-      'color': '#008394',
-      'linewidth': 1,
-      'linestyle': '-',
-      'label': 'Barrier'
-   }, 
-   'Rbsh': {
-      'color': '#008394',
-      'linewidth': 1,
-      'linestyle': '-.',
-      'label': 'Barrier Rsh'
-   }, 
-   'Sb': {
-      'color': '#008394',
-      'linewidth': 1,
-      'linestyle': ':',
-      'label': 'Barrier SCLC'
-   }
+  'Rs':    {'color': '#c10000', 'linewidth': 1, 'linestyle': '-',  'label': 'Series R'}, 
+  'Rc':    {'color': '#c10000', 'linewidth': 1, 'linestyle': '-',  'label': 'Contact'},
+  'St':    {'color': '#c10000', 'linewidth': 1, 'linestyle': ':',  'label': 'Transport SCLC'},
+  'Tt':    {'color': '#c10000', 'linewidth': 1, 'linestyle': '--', 'label': 'Transport TLC'},
+  'I':     {'color': '#ff8400', 'linewidth': 1, 'linestyle': ':',  'label': 'ILC'},
+  'Id':    {'color': '#ff8400', 'linewidth': 1, 'linestyle': '--', 'label': 'Idiode'}, 
+  'Rsh':   {'color': '#437601', 'linewidth': 1, 'linestyle': '-',  'label': 'Shunt'},
+  'Tsh':   {'color': '#437601', 'linewidth': 1, 'linestyle': '--', 'label': 'Shunt TLC'},
+  'Rshsh': {'color': '#437601', 'linewidth': 1, 'linestyle': '-.', 'label': 'Shunt Rsh'}, 
+  'Rb':    {'color': '#008394', 'linewidth': 1, 'linestyle': '-',  'label': 'Barrier'}, 
+  'Rbsh':  {'color': '#008394', 'linewidth': 1, 'linestyle': '-.', 'label': 'Barrier Rsh'}, 
+  'Sb':    {'color': '#008394', 'linewidth': 1, 'linestyle': ':',  'label': 'Barrier SCLC'}
 }
 
+fit_name = 'charge_dark'
 
+# Set plot display properties
 black_background = True
 line_color = 'white'
-
 plot_slopes = True
-
+write_model_version = True
 noise_threshold = 0.4
-
 plot_width = 7
 plot_height = 9
 dpi = 120
 
 # edit raw data display properties
-point_color = (1, 1, 0)
+point_color = '#eeff00'
 point_size = 1
+fit_color = '#ff00f7'
+fit_linewidth = 1.5
 
-write_model_version = False
-write_parameter_data_df = False
+# Device area [m^2]
+Area = 0.00000121	
 
 calculate_mobility = True
 epsilon0 = 8.854e-12
 epsilon_C60 = 2.3
-Area = 0.00000121	
 
-save = False
+# Save fit parameter values?
+save = True
+
+
+
 
 
 '''
-Open raw jv data file and create numpy array
+Open raw jv data and fit data file and create numpy arrays
 '''
 
 # create path to sim folder
@@ -150,6 +93,15 @@ j_data = data_raw[data_raw.columns[1]].to_numpy()
 if v_data[0] < 1e-10:
   v_data = np.delete(v_data, [0])
   j_data = np.delete(j_data, [0])
+
+# open fit file containing fit data
+fit = pd.read_csv(files / 'sim' / fit_name / "jv.best", sep="\t", skiprows=2, header=None)
+fit = fit.loc[(fit!=0).any(axis=1)]
+
+# create numpy arrays from fit data
+v_fit = fit[fit.columns[0]].to_numpy()
+j_fit = fit[fit.columns[1]].to_numpy()
+
 
 
 
@@ -328,16 +280,17 @@ if save == True:
   folderpath.mkdir(parents=True, exist_ok=True)
 
   # check if file exits
-  filename = Path(folderpath/'Fit values .txt')
+  filename = Path(folderpath/'Fit values .json')
   i = 1
   while (new_filename := filename.with_stem(f"{filename.stem}{i}")).exists():
     i += 1
   
-  # Save dictionary to a file using Pickle
-  with open('save_dict.pkl', 'wb') as f:
-    pickle.dump(save_dict, f)
+  # Save dictionary to a JSON file
+  with open(new_filename, 'w') as f:
+    json.dump(save_dict, f)
 
-  print('Parameters Saved')
+  print('Parameters Saved', '\n')
+
 
 
 
@@ -358,7 +311,7 @@ if calculate_mobility == True:
   I0_mu = powers_df.loc['St', 'I0']
   mu = 8/9/epsilon_C60/epsilon0*np.power(thickness_C60*1e-9, 3)*np.power(I0_mu,2)/Area
   
-  print('\n',"mobility =",round(mu,10), "m^2/Vs",'\n')
+  print("mobility =", round(mu,10), "m^2/Vs", '\n')
 
 
 
@@ -426,10 +379,10 @@ voltage = data_df.loc['voltage', data_df.columns[0]].values
 voltage = np.sort(voltage)
 voltage = np.array(voltage, dtype=float)
 
-# add fit to plot
+# add all fit lines to plot
 for name in elements:
     current_df = data_df.loc['i', name]
-    current = current_df.values / A
+    current = current_df.values / Area
     current = np.sort(current)
     axs0.plot(voltage,
               current,
@@ -438,6 +391,9 @@ for name in elements:
               linestyle = elements[name]['linestyle'],
               label = elements[name]['label']
               )
+
+# Add fit data to iv plot
+axs0.plot(v_fit, j_fit, linewidth=fit_linewidth, color=fit_color, linestyle='-', label='fit')
 
 # Add raw data to iv plot
 axs0.plot(v_data, j_data, linewidth=0, color=point_color, marker='o', markersize=point_size)
@@ -451,11 +407,15 @@ if plot_slopes == True:
   # calculate slope of data
   j_data_slope = np.gradient(np.log10(j_data), 
                              np.log10(v_data), edge_order=2)
+  
+  # calculate slope of fit
+  j_fit_slope = np.gradient(np.log10(j_fit), 
+                             np.log10(v_fit), edge_order=2)
 
   # add slope of fits to plot
   for name in elements:
       current_df = data_df.loc['i', name]
-      current = current_df.values / A
+      current = current_df.values / Area
       current = np.sort(current)
       # find log-log slope of current
       current_np = np.array(current, dtype=float)
@@ -466,7 +426,10 @@ if plot_slopes == True:
                 linewidth = elements[name]['linewidth'], 
                 linestyle = elements[name]['linestyle']
                 )
-      
+  
+  # Add fit data to slope plot
+  axs1.plot(v_fit, j_fit_slope, linewidth=fit_linewidth, color=fit_color, linestyle='-')
+  
   # plot slope raw data
   axs1.plot(v_data, j_data_slope, linewidth=0, color=point_color, marker='o', markersize=point_size)
 
