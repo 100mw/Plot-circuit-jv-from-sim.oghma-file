@@ -14,8 +14,8 @@ model_version = 'Model V19-2'
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
-sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/"
-#sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\"
+#sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v19-3\\"
 
 
 
@@ -78,8 +78,13 @@ folder_path = Path(sim_folder)
 # Create dictionary for all device data
 data_dict = {}
 
-# find folders ending in 'results'
-for index, folders in enumerate(folder_path.glob('**/*results')):
+# find folders in sim directory
+subfolders = [entry for entry in folder_path.iterdir() if entry.is_dir()]
+
+# Filter subdirectories that end with "results"
+matching_folders = [folder for folder in subfolders if folder.name.endswith("results")]
+
+for index, folders in enumerate(matching_folders):
 
     # look for 'fit values' file with greatest last digit
     filename = folders / 'fit values .json'
@@ -90,6 +95,8 @@ for index, folders in enumerate(folder_path.glob('**/*results')):
         # open diction from file
         with open(new_filename, 'r') as f:
             file_dict = json.load(f)
+
+    
 
     # Search folder name for device parameters
     folder_name = folders.name
