@@ -9,13 +9,13 @@ import re
 from collections import defaultdict
 from scipy.optimize import curve_fit
 
-model_version = 'Model V19-2' 
+model_version = 'Model V20-1' 
 
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/"
-sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v19-3\\"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v20-1\\"
 
 
 
@@ -41,30 +41,36 @@ epsilon_C60 = 2.3
 Set color for each circuit element
 '''
 
-colors = {'resistors': {   'Rb': '#fb00ee',
-                           'Rs': '#ff7300', 
-                           'Rt': '#00fb97',
-                         'Rbsh': '#fb00ea', 
-                         'Rcsh': '#fbea00', 
-                           'Rc': '#b0fb00', 
-                          'Rsh': '#00a3fb', 
-                        'Rshsh': '#5800fb' 
+colors = {'resistors': {     'Rb': '#00f3fb',
+                             'Rs': '#fb0000', 
+                             'Rt': '#fb0000',
+                           'Rbsh': '#00f3fb', 
+                           'Rcsh': '#fbea00', 
+                             'Rc': '#fbea00', 
+                            'Rsh': '#4bfb00', 
+                          'Rshsh': '#4bfb00',
+                         'Rshdsh': '#4bfb00'
                          },
-          'spacecharges':{ 'St': '#fb0000',
-                           'Sc': '#00fb97',
-                           'Sb': '#fb00ea',
-                          'Ssh': '#00f3fb'
+          'spacecharges': {  'St': '#fb0000',
+                             'Sc': '#fbea00',
+                             'Sb': '#00f3fb',
+                            'Ssh': '#2a8c00'
                           },
-          'transports': {  'Tt': '#ff7300',
-                          'Tsh': '#00a3fb'
+          'transports': {    'Tt': '#fb0000',
+                            'Tsh': '#2a8c00'
                          },
-          'interfaces': {   'I': '#fbea00'
+          'interfaces': {     'I': '#fb8600'
                          },
-          'diodes': {      'Id': '#ace003'
+          'diodes': {        'Id': '#fb8600',
+                           'Idsh': '#4bfb00'
                      },
-          'barriers': {     'B': '#d100fb'
+          'barriers': {       'B': '#00f3fb'
                        }
            }
+
+
+
+
 
 
 
@@ -124,6 +130,9 @@ with open(sim_folder + 'data_dict.json', 'w') as f:
 
 
 
+
+
+
 '''
 Set up master plot
 '''
@@ -135,10 +144,11 @@ if black_background == True:
 
 # Create figure layout
 layout = [
-    ['R' , 'S'  , 'T' , 'Et'],
-    ['R' , 'St' , 'I' , 'Ei'],
-    ['R' , 'Rsh', 'Id', 'n' ],
-    ['Rs', 'Rt' , 'B' , 'b0']
+    ['R'    , 'Rs'      , 'S'   , 'T'       , 'Et'  ],
+    ['R'    , 'Rt'      , 'St'  , 'I'       , 'Ei'  ],
+    ['R'    , 'Rcsh'    , 'Sc'  , 'Id'      , 'nd'  ],
+    ['Rsh'  , 'Rshsh'   , 'Ssh' , 'Idsh'    , 'ndsh'],
+    ['Rsh'  , 'Rbsh'    , 'Sb'  , 'B'       , 'b0'  ]
 ]
 
 fig = plt.figure(figsize=(plot_width, plot_height), dpi=dpi)
@@ -153,20 +163,10 @@ i=1
 fig.canvas.manager.set_window_title(folder_path.name + " " + str(i)) 
 
 # Set axes y labels
-ax['R'].set_ylabel("R")
-ax['Rs'].set_ylabel("Rs")
-ax['Rt'].set_ylabel("Rt")
-ax['Rsh'].set_ylabel("Rsh")
-ax['S'].set_ylabel("S")
-ax['St'].set_ylabel("St")
-ax['T'].set_ylabel("T")
-ax['Et'].set_ylabel("Et")
-ax['I'].set_ylabel("I")
-ax['Ei'].set_ylabel("Ei")
-ax['Id'].set_ylabel("Id")
-ax['n'].set_ylabel("n")
-ax['B'].set_ylabel("B")
-ax['b0'].set_ylabel("b0")
+for row in layout:
+    for item in row:
+        ax[item].set_ylabel(item)
+
 
 # Set axes labels
 ax['S'].set_xlabel("Thickness [nm]")
@@ -174,6 +174,9 @@ ax['S'].set_xlabel("Thickness [nm]")
 # Set log scale
 ax['R'].set_yscale("log")
 ax['S'].set_yscale("log")
+ax['Rsh'].set_yscale('log')
+#ax['Id'].set_yscale('log')
+ax['Idsh'].set_yscale('log')
 
 if write_model_version == True:
   
@@ -369,8 +372,8 @@ yfit_np = Jo_sc_fit[0][0]*xfit_np + Jo_sc_fit[0][1]
 # calculate mobilty
 mu = 8/9*Jo_sc_fit[0][0]/epsilon0/epsilon_C60
 
-print(mu)
-
+print('mobility =', mu)
+print('offset =', Jo_sc_fit[0][1])
 
 
 
@@ -428,11 +431,18 @@ add_to_plot('Rsh','resistors', 'Rcsh', 'R [Ohms]')
 add_to_plot('Rsh','resistors', 'Rbsh', 'R [Ohms]')
 
 add_to_plot('Rt','resistors', 'Rt', 'R [Ohms]')
+add_to_plot('Rcsh', 'resistors', 'Rcsh', 'R [Ohms]')
+add_to_plot('Rbsh', 'resistors', 'Rbsh', 'R [Ohms]')
+add_to_plot('Rshsh', 'resistors', 'Rshsh', 'R [Ohms]')
+
 
 for spacecharges in results_dict['spacecharges']:
     add_to_plot('S','spacecharges', spacecharges, 'I0')
 
 add_to_plot('St','spacecharges', 'St', 'I0')
+add_to_plot('Sb','spacecharges', 'Sb', 'I0')
+add_to_plot('Sc','spacecharges', 'Sc', 'I0')
+add_to_plot('Ssh','spacecharges', 'Ssh', 'I0')
 
 for transports in results_dict['transports']:
     add_to_plot('T','transports', transports, 'I0')
@@ -442,16 +452,22 @@ for interfaces in results_dict['interfaces']:
     add_to_plot('I','interfaces', interfaces, 'I0')
     add_to_plot('Ei','interfaces', interfaces, 'Power')
 
-for diodes in results_dict['diodes']:
-    add_to_plot('Id','diodes', diodes, 'I0')
-    add_to_plot('n','diodes', diodes, 'n')
+
+add_to_plot('Id','diodes', 'Id', 'I0')
+add_to_plot('nd','diodes', 'Id', 'n')
+add_to_plot('Idsh','diodes', 'Idsh', 'I0')
+add_to_plot('ndsh','diodes', 'Idsh', 'n')
+
+
 
 for barriers in results_dict['barriers']:
     add_to_plot('B','barriers', barriers, 'I0')
     add_to_plot('b0','barriers', barriers, 'b0')
 
 # Save figure
+fig.savefig(sim_folder + 'All parameters.png')
 fig.savefig(sim_folder + 'All parameters.pdf')
+
 
 
 
@@ -492,6 +508,20 @@ ax1.plot(xfit_np,
         linewidth = 1,
         linestyle = '--',
         color = 'white')
+
+# draw mobility target line
+mu_target = 1.5e-7
+x_np = np.linspace(0,4e22,10)
+Jo_np = 9/8*epsilon0*epsilon_C60*mu_target*x_np
+
+ax1.plot(x_np, 
+        Jo_np,
+        linewidth = 1,
+        linestyle = '-',
+        color = 'gray')
+
+
+ax1.set_ylim(bottom=0)
 
 # Save figure
 fig1.savefig(sim_folder + 'Jo_sc.pdf')
