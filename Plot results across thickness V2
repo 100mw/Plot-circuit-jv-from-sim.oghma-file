@@ -34,7 +34,7 @@ Area = 0.00000121
 epsilon0 = 8.854e-12
 epsilon_C60 = 2.3
 
-
+mu_target = 1e-7
 
 
 '''
@@ -213,7 +213,7 @@ ax1.set_ylabel("Jo_sc")
 
 
 '''
-# function to create dataframe for each circuit element parameter and store in a results dictionary
+Function to create dataframe for each circuit element parameter and store in a results dictionary
 '''
 
 # dictionary for dataframe of sweeps
@@ -325,6 +325,7 @@ for type in results_dict:
 
             # create new average column
             df['ave'] = (df['up'] + df['down'])/2
+
 
 
 
@@ -510,7 +511,6 @@ ax1.plot(xfit_np,
         color = 'white')
 
 # draw mobility target line
-mu_target = 1.5e-7
 x_np = np.linspace(0,4e22,10)
 Jo_np = 9/8*epsilon0*epsilon_C60*mu_target*x_np
 
