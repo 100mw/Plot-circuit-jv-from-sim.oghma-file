@@ -7,27 +7,28 @@ import matplotlib.pyplot as plt
 import numpy as np
 import re
 
-model_version = 'Model V20-1' 
+model_version = 'Model V21-1' 
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder_directory = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/v19-2 c60 60nm d14 down/"
-sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v20-1"
+sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1"
 
 # select device from dictionary
-device = 8
+device = 6
 
 device_dict = {1 : 'c60 30nm d10 up',
                2 : 'c60 30nm d10 down',
                3 : 'c60 40nm d14 up',
                4 : 'c60 40nm d14 down',
-               5 : 'c60 56nm d10 up',
-               6 : 'c60 56nm d10 down',
-               7 : 'c60 60nm d14 up',
-               8 : 'c60 60nm d14 down',
+               7 : 'c60 56nm d10 up',
+               8 : 'c60 56nm d10 down',
+               5 : 'c60 60nm d14 up',
+               6 : 'c60 60nm d14 down',
                9 : 'pause\\v19-4 c60 30nm d23 pause up'
                }
 
-
+# save as .pdf or .png?
+plot_file_type = '.png'
 
 
 '''
@@ -50,11 +51,14 @@ elements = {
   'Tsh':   {'color': '#437601', 'linewidth': 1, 'linestyle': '--', 'label': 'Shunt TLC'},
   'Rshsh': {'color': '#437601', 'linewidth': 1, 'linestyle': '-.', 'label': 'Shunt Rsh'}, 
   'Rb':    {'color': '#00e1ff', 'linewidth': 1, 'linestyle': '-',  'label': 'Barrier leg'}, 
-  'Rbsh':  {'color': '#008394', 'linewidth': 1, 'linestyle': '-.', 'label': 'Barrier Rshsh'}, 
-  'Sb':    {'color': '#008394', 'linewidth': 1, 'linestyle': ':',  'label': 'Barrier SCLC'}
+  'Rbsh':  {'color': '#008394', 'linewidth': 1, 'linestyle': '-.', 'label': 'Barrier Rsh'}, 
+  'Rbdsh': {'color': '#008394', 'linewidth': 1, 'linestyle': '--', 'label': 'Barrier Rdsh'}, 
+'Sb':    {'color': '#008394', 'linewidth': 1, 'linestyle': ':',  'label': 'Barrier SCLC'}
 }
 
 fit_name = 'jv'
+
+
 
 # Set plot display properties
 black_background = True
@@ -528,7 +532,7 @@ if save == True:
 
 
   # save figure to directory
-  figurepath = sim_folder_path.with_suffix('.pdf')
+  figurepath = sim_folder_path.with_suffix(plot_file_type)
 
   plt.savefig(figurepath)
 

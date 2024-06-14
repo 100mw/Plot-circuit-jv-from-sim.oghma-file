@@ -9,15 +9,16 @@ import re
 from collections import defaultdict
 from scipy.optimize import curve_fit
 
-model_version = 'Model V20-1' 
+model_version = 'Model V21-1' 
 
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/"
-sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v20-1\\"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1\\"
 
-
+# save as .pdf or .png?
+plot_file_type = '.png'
 
 #plot settings
 black_background = True
@@ -34,7 +35,7 @@ Area = 0.00000121
 epsilon0 = 8.854e-12
 epsilon_C60 = 2.3
 
-mu_target = 1e-7
+mu_target = 4.3e-8
 
 
 '''
@@ -49,7 +50,7 @@ colors = {'resistors': {     'Rb': '#00f3fb',
                              'Rc': '#fbea00', 
                             'Rsh': '#4bfb00', 
                           'Rshsh': '#4bfb00',
-                         'Rshdsh': '#4bfb00'
+                          'Rbdsh': '#00cdfb'
                          },
           'spacecharges': {  'St': '#fb0000',
                              'Sc': '#fbea00',
@@ -466,8 +467,7 @@ for barriers in results_dict['barriers']:
     add_to_plot('b0','barriers', barriers, 'b0')
 
 # Save figure
-fig.savefig(sim_folder + 'All parameters.png')
-fig.savefig(sim_folder + 'All parameters.pdf')
+fig.savefig(sim_folder + 'All parameters' + plot_file_type)
 
 
 
@@ -524,4 +524,4 @@ ax1.plot(x_np,
 ax1.set_ylim(bottom=0)
 
 # Save figure
-fig1.savefig(sim_folder + 'Jo_sc.pdf')
+fig1.savefig(sim_folder + 'Jo_sc' + plot_file_type )
