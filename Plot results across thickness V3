@@ -14,11 +14,11 @@ model_version = 'Model V21-1'
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
-#sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/"
-sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1\\"
+sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
+#sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1\\"
 
 # save as .pdf or .png?
-plot_file_type = '.png'
+plot_file_type = '.pdf'
 
 #plot settings
 black_background = True
@@ -33,7 +33,7 @@ Area = 0.00000121
 
 # Device parameters
 epsilon_C60 = 2.3
-Nt = 1e24
+Nt = 2e24
 
 # constants
 epsilon0 = 8.854e-12
@@ -47,30 +47,30 @@ mu_target = 4.3e-8
 Set color for each circuit element
 '''
 
-colors = {'resistors': {     'Rb': '#00f3fb',
-                             'Rs': '#fb0000', 
-                             'Rt': '#fb0000',
-                           'Rbsh': '#00f3fb', 
-                           'Rcsh': '#fbea00', 
-                             'Rc': '#fbea00', 
-                            'Rsh': '#4bfb00', 
-                          'Rshsh': '#4bfb00',
-                          'Rbdsh': '#00cdfb'
+colors = {'resistors': {        'Rb': '#00f3fb',
+                                'Rs': '#fb0000', 
+                                'Rt': '#fb0000',
+                              'Rbsh': '#00f3fb', 
+                              'Rcsh': '#fbea00', 
+                                'Rc': '#fbea00', 
+                               'Rsh': '#4bfb00', 
+                             'Rshsh': '#4bfb00',
+                             'Rbdsh': '#00cdfb'
                          },
-          'spacecharges': {  'St': '#fb0000',
-                             'Sc': '#fbea00',
-                             'Sb': '#00f3fb',
-                            'Ssh': '#2a8c00'
+          'spacecharges': {     'St': '#fb0000',
+                                'Sc': '#fbea00',
+                                'Sb': '#00f3fb',
+                               'Ssh': '#2a8c00'
                           },
-          'transports': {    'Tt': '#fb0000',
-                            'Tsh': '#2a8c00'
+          'transports': {       'Tt': '#fb0000',
+                               'Tsh': '#2a8c00'
                          },
-          'interfaces': {     'I': '#fb8600'
+          'interfaces': {        'I': '#fb8600'
                          },
-          'diodes': {        'Id': '#fb8600',
-                           'Idsh': '#4bfb00'
+          'diodes': {           'Id': '#fb8600',
+                              'Idsh': '#4bfb00'
                      },
-          'barriers': {       'B': '#00f3fb'
+          'barriers': {          'B': '#00f3fb'
                        }
            }
 
@@ -567,7 +567,7 @@ Solve for Nc
 
 # define functin for mobility
 def mobility(I0, thickness):
-    return 8/9 / epsilon0 / epsilon_C60 * np.power(thickness * 1e-9, 3) * np.power(I0, 2) / Area
+    return 8/9 / epsilon0 / epsilon_C60 * np.power(thickness.astype(float) * 1e-9, 3) * np.power(I0, 2) / Area
 
 # define function for y values
 def y_values(I0, slope, mobility):
@@ -575,19 +575,23 @@ def y_values(I0, slope, mobility):
     current_term = np.power(I0, l + 1)
     trap_term = np.power(q * Nt / epsilon0 / epsilon_C60 * (l + 1) / l, l)
     slope_term = np.power((l + 1) / (2 * l + 1), l + 1)
-    return current_term * Area / q / mobility * trap_term * slope_term
+    return current_term / Area / q / mobility * trap_term * slope_term
 
 # define function for x values
 def x_values(thickness, slope):
-    return 1/ np.power(thickness * 1e-9, 2 * slope + 1)
+    l = slope - 1
+    return np.power(thickness.astype(float) * 1e-9, -(2 * l + 1))
+
+# get df for St
+St_df = results_dict['spacecharges']['St']['I0']
 
 # get df for Tt
 Tt_df = results_dict['transports']['Tt']['I0']
 
 # calculate mobility
-Tt_df['mu'] = mobility(Tt_df['ave'], Tt_df['Thickness'])
-Tt_df['mu up'] = mobility(Tt_df['up'], Tt_df['Thickness'])
-Tt_df['mu down'] = mobility(Tt_df['down'], Tt_df['Thickness'])
+Tt_df['mu'] = mobility(St_df['ave'], St_df['Thickness'])
+Tt_df['mu up'] = mobility(St_df['up'], St_df['Thickness'])
+Tt_df['mu down'] = mobility(St_df['down'], St_df['Thickness'])
 
 # find slope
 Tt_df['slope'] = results_dict['transports']['Tt']['Power']['ave']
@@ -606,11 +610,11 @@ Tt_df['y_values down'] = y_values(Tt_df['down'], Tt_df['slope'], Tt_df['mu down'
 
 # Nc fit
 m_guess = 5e25
-b_guess = 1
+b_guess = 0
 
+print(St_df['Thickness'].astype(float) * 1e-9)
 
-print(Tt_df['x_values'])
-print(Tt_df['y_values'])
+print(Tt_df['mu'].astype(float))
 
 # mobility fit
 Nc_fit = curve_fit(linear_function, 
@@ -620,7 +624,7 @@ Nc_fit = curve_fit(linear_function,
                       method='lm')
 
 # d^-(2l+1) x values for fit line
-xfit_np = np.linspace(1e68, 1e80)
+xfit_np = np.linspace(1e52, 1e65)
 
 # y values for fit line
 yfit_np = Nc_fit[0][0]*xfit_np + Nc_fit[0][1]
@@ -641,36 +645,59 @@ print('offset =', Nc_fit[0][1])
 Add values to Tt plot
 '''
 
-# add data point to plot
-ax2.plot(Tt_df['x_values'], 
-            Tt_df['y_values'],
+# function to add data point to plot
+def data_to_ax2(row, color):
+
+    ax2.plot(Tt_df.loc[row, 'x_values'], 
+            Tt_df.loc[row, 'y_values'],
             marker = 'o',
             linewidth = 1,
             linestyle = '-',
-            color = colors['spacecharges']['St'])
+            color = color,
+            label = Tt_df.loc[row, 'Thickness'])
 
-ax2.plot(Tt_df['x_values'], 
-            Tt_df['y_values up'],
+    ax2.plot(Tt_df.loc[row, 'x_values'], 
+            Tt_df.loc[row, 'y_values up'],
             marker = '^',
             linewidth = 0.5,
             linestyle = '--',
-            color = colors['spacecharges']['St'])
+            color = color
+            )
 
-ax2.plot(Tt_df['x_values'], 
-            Tt_df['y_values down'],
+    ax2.plot(Tt_df.loc[row, 'x_values'], 
+            Tt_df.loc[row, 'y_values down'],
             marker = 'v',
             linewidth = 0.5,
             linestyle = '--',
-            color = colors['spacecharges']['St'])
+            color = color)
+    
+# add data to plot
+data_to_ax2('0', '#00f2ff')
+data_to_ax2('1', '#f700ff')
+data_to_ax2('2', '#f6ff00')
+#data_to_ax2('3', '#ff0048')
 
+# plot fit line
 ax2.plot(xfit_np, 
         yfit_np,
         linewidth = 1,
         linestyle = '--',
         color = 'white')
 
+# plot guess Nc line
+ax2.plot(xfit_np, 
+        m_guess * xfit_np,
+        linewidth = 1,
+        linestyle = '-',
+        color = 'gray')
 
+#text box for Nt
+ax2.text(0.98, 0.06, 'Nt = ' + format(Nt,'.2e'), transform=ax2.transAxes, ha='right')
 
+#text box for Nc
+ax2.text(0.98, 0.025, 'Nc = ' + format(Nc,'.2e'), transform=ax2.transAxes, ha='right')
+
+ax2.legend()
 
 # Save figure
 fig2.savefig(sim_folder + 'Tt' + plot_file_type )
