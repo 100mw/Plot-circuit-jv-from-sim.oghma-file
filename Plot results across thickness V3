@@ -14,8 +14,8 @@ model_version = 'Model V21-1'
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
-#sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
-sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1\\"
+sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
+#sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1\\"
 
 # save as .pdf or .png?
 plot_file_type = '.pdf'
@@ -33,7 +33,7 @@ Area = 0.00000121
 
 # Device parameters
 epsilon_C60 = 2.3
-Nt = 1e24
+Nt = 8e23
 
 # constants
 epsilon0 = 8.854e-12
@@ -589,7 +589,7 @@ fig1.savefig(sim_folder + 'Jo_sc' + plot_file_type )
 
 
 '''
-Solve for Nc
+Solve for Nc for Tt
 '''
 
 # define functin for mobility
@@ -597,12 +597,12 @@ def mobility(I0, thickness):
     return 8/9 / epsilon0 / epsilon_C60 * np.power(thickness.astype(float) * 1e-9, 3) * np.power(I0, 2) / Area
 
 # define function for y values
-def y_values(I0, slope, mobility):
+def y_values(I0, slope, mobility, fraction):
     l = slope - 1
     current_term = np.power(I0, l + 1)
     trap_term = np.power(q * Nt / epsilon0 / epsilon_C60 * (l + 1) / l, l)
     slope_term = np.power((l + 1) / (2 * l + 1), l + 1)
-    return current_term / Area / q / mobility * trap_term * slope_term
+    return current_term / fraction / Area / q / mobility * trap_term * slope_term
 
 # define function for x values
 def x_values(thickness, slope):
@@ -631,38 +631,114 @@ Tt_df['x_values up'] = x_values(Tt_df['Thickness'], Tt_df['slope up'])
 Tt_df['x_values down'] = x_values(Tt_df['Thickness'], Tt_df['slope down'])
 
 # caluculate y values
-Tt_df['y_values'] = y_values(Tt_df['ave'], Tt_df['slope'], Tt_df['mu'])
-Tt_df['y_values up'] = y_values(Tt_df['up'], Tt_df['slope'], Tt_df['mu up'])
-Tt_df['y_values down'] = y_values(Tt_df['down'], Tt_df['slope'], Tt_df['mu down'])
+Tt_df['y_values'] = y_values(Tt_df['ave'], Tt_df['slope'], Tt_df['mu'], 1)
+Tt_df['y_values up'] = y_values(Tt_df['up'], Tt_df['slope'], Tt_df['mu up'], 1)
+Tt_df['y_values down'] = y_values(Tt_df['down'], Tt_df['slope'], Tt_df['mu down'], 1)
 
 # Nc fit
 m_guess = 5e25
 b_guess = 0
 
-print(St_df['Thickness'].astype(float) * 1e-9)
-
-print(Tt_df['mu'].astype(float))
-
-# mobility fit
-Nc_fit = curve_fit(linear_function, 
+# Nc fit
+Nc_fit_Tt = curve_fit(linear_function, 
                       pd.to_numeric(Tt_df['x_values']),
                       pd.to_numeric(Tt_df['y_values']),
                       p0=[m_guess, b_guess],
                       method='lm')
 
 # d^-(2l+1) x values for fit line
-xfit_np = np.linspace(1e48, 1e65)
+xfit_np_Tt = np.linspace(1e48, 1e65)
 
 # y values for fit line
-yfit_np = Nc_fit[0][0]*xfit_np + Nc_fit[0][1]
+yfit_np_Tt = Nc_fit_Tt[0][0]*xfit_np_Tt + Nc_fit_Tt[0][1]
 
 # calculate Nc
-Nc = Nc_fit[0][0]
+Nc_Tt = Nc_fit_Tt[0][0]
 
-print('Nc =', Nc)
-print('offset =', Nc_fit[0][1])
+print('Nc Tt =', Nc_Tt)
 
 
+
+
+
+
+
+'''
+Find fractional area for Ssh element
+'''
+
+# define function to calculate fractional area for Ssh element
+def fraction_S(sweep):
+    return (np.power(moo3_thickness/results_dict['spacecharges']['St']['I0']['Thickness'], 3)
+    * np.power(results_dict['spacecharges']['Ssh']['I0'][sweep]
+             /results_dict['spacecharges']['St']['I0'][sweep], 2))
+
+# find fraction for Ssh element
+St_df['fraction'] = fraction_S('ave')
+St_df['fraction up'] = fraction_S('up')
+St_df['fraction down'] = fraction_S('down')
+
+
+
+
+
+
+
+
+
+
+
+'''
+Solve for Nc for Tsh
+'''
+
+# get df for Tsh
+Tsh_df = results_dict['transports']['Tsh']['I0']
+
+# calculate mobility
+Tsh_df['mu'] = mobility(St_df['ave'], St_df['Thickness'])
+Tsh_df['mu up'] = mobility(St_df['up'], St_df['Thickness'])
+Tsh_df['mu down'] = mobility(St_df['down'], St_df['Thickness'])
+
+# find slope
+Tsh_df['slope'] = results_dict['transports']['Tt']['Power']['ave']
+Tsh_df['slope up'] = results_dict['transports']['Tt']['Power']['up']
+Tsh_df['slope down'] = results_dict['transports']['Tt']['Power']['down']
+
+# set thickness
+Tsh_df['Thickness'] = moo3_thickness
+
+# calculate x values
+Tsh_df['x_values'] = x_values(Tsh_df['Thickness'], Tsh_df['slope'])
+Tsh_df['x_values up'] = x_values(Tsh_df['Thickness'], Tsh_df['slope up'])
+Tsh_df['x_values down'] = x_values(Tsh_df['Thickness'], Tsh_df['slope down'])
+
+# caluculate y values
+Tsh_df['y_values'] = y_values(Tsh_df['ave'], Tsh_df['slope'], Tsh_df['mu'], fraction_S('ave'))
+Tsh_df['y_values up'] = y_values(Tsh_df['up'], Tsh_df['slope'], Tsh_df['mu up'], fraction_S('up'))
+Tsh_df['y_values down'] = y_values(Tsh_df['down'], Tsh_df['slope'], Tsh_df['mu down'], fraction_S('down'))
+
+# Nc fit
+m_guess = 5e25
+b_guess = 0
+
+# Nc fit
+Nc_fit_Tsh = curve_fit(linear_function, 
+                      pd.to_numeric(Tsh_df['x_values']),
+                      pd.to_numeric(Tsh_df['y_values']),
+                      p0=[m_guess, b_guess],
+                      method='lm')
+
+# d^-(2l+1) x values for fit line
+xfit_np_Tsh = np.linspace(1e55, 1e70)
+
+# y values for fit line
+yfit_np_Tsh = Nc_fit_Tsh[0][0]*xfit_np_Tsh + Nc_fit_Tsh[0][1]
+
+# calculate Nc
+Nc_Tsh = Nc_fit_Tsh[0][0]
+
+print('Nc =', Nc_Tsh)
 
 
 
@@ -673,11 +749,11 @@ print('offset =', Nc_fit[0][1])
 function to add up/down/ave data point to plot with same color
 
 '''
-def data_to_ax(axis, dataframe, row, x_values, y_values, color):
+def data_to_ax(axis, dataframe, row, x_values, y_values, color, marker):
 
     axis.plot(dataframe.loc[row, x_values], 
             dataframe.loc[row, y_values],
-            marker = 'o',
+            marker = marker,
             linewidth = 1,
             linestyle = '-',
             color = color,
@@ -704,34 +780,55 @@ def data_to_ax(axis, dataframe, row, x_values, y_values, color):
 
 
 '''
-Add values to Tt plot
+Add values to Nc plot
 '''
 
 # add data to plot
-data_to_ax(ax2, Tt_df, Tt_df.index[0], 'x_values', 'y_values', '#00f2ff')
-data_to_ax(ax2, Tt_df, Tt_df.index[1], 'x_values', 'y_values', '#f700ff')
-data_to_ax(ax2, Tt_df, Tt_df.index[2], 'x_values', 'y_values', '#f6ff00')
-data_to_ax(ax2, Tt_df, Tt_df.index[3], 'x_values', 'y_values', '#4dff00')
+data_to_ax(ax2, Tt_df, Tt_df.index[0], 'x_values', 'y_values', '#00f2ff', 'o')
+data_to_ax(ax2, Tt_df, Tt_df.index[1], 'x_values', 'y_values', '#f700ff', 'o')
+data_to_ax(ax2, Tt_df, Tt_df.index[2], 'x_values', 'y_values', '#f6ff00', 'o')
+#data_to_ax(ax2, Tt_df, Tt_df.index[3], 'x_values', 'y_values', '#4dff00', 'o')
 
 # plot fit line
-ax2.plot(xfit_np, 
-        yfit_np,
+ax2.plot(xfit_np_Tt, 
+        yfit_np_Tt,
         linewidth = 1,
         linestyle = '--',
         color = 'white')
 
 # plot guess Nc line
-ax2.plot(xfit_np, 
-        m_guess * xfit_np,
+ax2.plot(xfit_np_Tt, 
+        m_guess * xfit_np_Tt,
+        linewidth = 1,
+        linestyle = '-',
+        color = 'gray')
+
+# add data to plot
+data_to_ax(ax2, Tsh_df, Tsh_df.index[0], 'x_values', 'y_values', '#00f2ff', 'D')
+data_to_ax(ax2, Tsh_df, Tsh_df.index[1], 'x_values', 'y_values', '#f700ff', 'D')
+data_to_ax(ax2, Tsh_df, Tsh_df.index[2], 'x_values', 'y_values', '#f6ff00', 'D')
+#data_to_ax(ax2, Tt_df, Tt_df.index[3], 'x_values', 'y_values', '#4dff00', 'D')
+
+# plot fit line
+ax2.plot(xfit_np_Tsh, 
+        yfit_np_Tsh,
+        linewidth = 1,
+        linestyle = '--',
+        color = 'white')
+
+# plot guess Nc line
+ax2.plot(xfit_np_Tsh, 
+        m_guess * xfit_np_Tsh,
         linewidth = 1,
         linestyle = '-',
         color = 'gray')
 
 #text box for Nt
-ax2.text(0.98, 0.06, 'Nt = ' + format(Nt,'.2e'), transform=ax2.transAxes, ha='right')
+ax2.text(0.98, 0.085, 'Nt = ' + format(Nt,'.2e'), transform=ax2.transAxes, ha='right')
 
 #text box for Nc
-ax2.text(0.98, 0.025, 'Nc = ' + format(Nc,'.2e'), transform=ax2.transAxes, ha='right')
+ax2.text(0.98, 0.06, 'Nc = ' + format(Nc_Tt,'.2e'), transform=ax2.transAxes, ha='right')
+ax2.text(0.98, 0.025, 'Nc = ' + format(Nc_Tsh,'.2e'), transform=ax2.transAxes, ha='right')
 
 ax2.legend()
 
@@ -742,43 +839,25 @@ fig2.savefig(sim_folder + 'Tt' + plot_file_type )
 
 
 
+
+
+
 '''
 Plot area fraction
 '''
 
-# define function to calculate fractional area for Ssh element
-def fraction_S(sweep):
-    return (np.power(moo3_thickness/results_dict['spacecharges']['St']['I0']['Thickness'], 3)
-    * np.power(results_dict['spacecharges']['Ssh']['I0'][sweep]
-             /results_dict['spacecharges']['St']['I0'][sweep], 2))
 
-# find fraction for Ssh element
-St_df['fraction'] = fraction_S('ave')
-St_df['fraction up'] = fraction_S('up')
-St_df['fraction down'] = fraction_S('down')
 
-# define function to calculate fraction area for Tsh element
-def fraction_T(sweep):
-    l = Tt_df['slope'] - 1
-    return (np.power(moo3_thickness/results_dict['transports']['Tt']['I0']['Thickness'], 
-              2 * l + 1)
-    * np.power(results_dict['transports']['Tsh']['I0'][sweep]
-             /results_dict['transports']['Tt']['I0'][sweep], l + 1))
+# Set up/down thicknesses
+St_df['Thickness up'] = St_df['Thickness']
+St_df['Thickness down'] = St_df['Thickness']
 
-# find fraction for Tsh element
-Tt_df['fraction'] = fraction_T('ave')
-Tt_df['fraction up'] = fraction_T('up')
-Tt_df['fraction down'] = fraction_T('down')
 
 # add S fraction data to plot
-data_to_ax(ax3, St_df, St_df.index[0], 'Thickness', 'fraction', '#00f2ff')
-data_to_ax(ax3, St_df, St_df.index[1], 'Thickness', 'fraction', '#f700ff')
-data_to_ax(ax3, St_df, St_df.index[2], 'Thickness', 'fraction', '#f6ff00')
+data_to_ax(ax3, St_df, St_df.index[0], 'Thickness', 'fraction', '#00f2ff', 'o')
+data_to_ax(ax3, St_df, St_df.index[1], 'Thickness', 'fraction', '#f700ff', 'o')
+data_to_ax(ax3, St_df, St_df.index[2], 'Thickness', 'fraction', '#f6ff00', 'o')
 
-# add T fraction data to plot
-data_to_ax(ax3, Tt_df, Tt_df.index[0], 'Thickness', 'fraction', '#0051ff')
-data_to_ax(ax3, Tt_df, Tt_df.index[1], 'Thickness', 'fraction', '#8c00ff')
-data_to_ax(ax3, Tt_df, Tt_df.index[2], 'Thickness', 'fraction', '#ff9d00')
 
 ax3.legend()
 
