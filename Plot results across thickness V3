@@ -14,8 +14,8 @@ model_version = 'Model V21-1'
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
-sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
-#sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1\\"
+#sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1\\"
 
 # save as .pdf or .png?
 plot_file_type = '.pdf'
@@ -33,12 +33,14 @@ Area = 0.00000121
 
 # Device parameters
 epsilon_C60 = 2.3
-Nt = 2e24
+Nt = 1e24
 
 # constants
 epsilon0 = 8.854e-12
 q = 1.6e-19
 
+# thickness of MoO3 in nm
+moo3_thickness = 10
 
 mu_target = 4.3e-8
 
@@ -246,6 +248,29 @@ ax2.set_yscale('log')
 
 
 '''
+Set up are fraction plot
+'''
+
+fig3, ax3 = plt.subplots(figsize = (plot_height, plot_height), dpi=dpi)
+
+#adjust plot margins
+fig3.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.2, hspace=0, wspace=0.4)
+
+# Set title
+i=1
+fig3.canvas.manager.set_window_title(folder_path.name + " " + str(i)) 
+
+# Set axes labels
+ax3.set_xlabel("Thickness [nm]")
+ax3.set_ylabel("Area fraction")
+ax3.set_yscale('log')
+
+
+
+
+
+
+'''
 Function to create dataframe for each circuit element parameter and store in a results dictionary
 '''
 
@@ -370,6 +395,8 @@ Calculations for St
 
 # get df for St
 df = results_dict['spacecharges']['St']['I0']
+
+print(df)
 
 # calculate d^-3
 df['d^-3'] = np.power(df['Thickness'] * 1e-9, -3)
@@ -624,7 +651,7 @@ Nc_fit = curve_fit(linear_function,
                       method='lm')
 
 # d^-(2l+1) x values for fit line
-xfit_np = np.linspace(1e52, 1e65)
+xfit_np = np.linspace(1e48, 1e65)
 
 # y values for fit line
 yfit_np = Nc_fit[0][0]*xfit_np + Nc_fit[0][1]
@@ -641,41 +668,50 @@ print('offset =', Nc_fit[0][1])
 
 
 
-'''
-Add values to Tt plot
-'''
 
-# function to add data point to plot
-def data_to_ax2(row, color):
+'''
+function to add up/down/ave data point to plot with same color
 
-    ax2.plot(Tt_df.loc[row, 'x_values'], 
-            Tt_df.loc[row, 'y_values'],
+'''
+def data_to_ax(axis, dataframe, row, x_values, y_values, color):
+
+    axis.plot(dataframe.loc[row, x_values], 
+            dataframe.loc[row, y_values],
             marker = 'o',
             linewidth = 1,
             linestyle = '-',
             color = color,
-            label = Tt_df.loc[row, 'Thickness'])
+            label = dataframe.loc[row, 'Thickness'])
 
-    ax2.plot(Tt_df.loc[row, 'x_values'], 
-            Tt_df.loc[row, 'y_values up'],
+    axis.plot(dataframe.loc[row, x_values + ' up'], 
+            dataframe.loc[row, y_values + ' up'],
             marker = '^',
             linewidth = 0.5,
             linestyle = '--',
             color = color
             )
 
-    ax2.plot(Tt_df.loc[row, 'x_values'], 
-            Tt_df.loc[row, 'y_values down'],
+    axis.plot(dataframe.loc[row, x_values + ' down'], 
+            dataframe.loc[row, y_values + ' down'],
             marker = 'v',
             linewidth = 0.5,
             linestyle = '--',
             color = color)
     
+
+
+
+
+
+'''
+Add values to Tt plot
+'''
+
 # add data to plot
-data_to_ax2('0', '#00f2ff')
-data_to_ax2('1', '#f700ff')
-data_to_ax2('2', '#f6ff00')
-#data_to_ax2('3', '#ff0048')
+data_to_ax(ax2, Tt_df, Tt_df.index[0], 'x_values', 'y_values', '#00f2ff')
+data_to_ax(ax2, Tt_df, Tt_df.index[1], 'x_values', 'y_values', '#f700ff')
+data_to_ax(ax2, Tt_df, Tt_df.index[2], 'x_values', 'y_values', '#f6ff00')
+data_to_ax(ax2, Tt_df, Tt_df.index[3], 'x_values', 'y_values', '#4dff00')
 
 # plot fit line
 ax2.plot(xfit_np, 
@@ -701,3 +737,50 @@ ax2.legend()
 
 # Save figure
 fig2.savefig(sim_folder + 'Tt' + plot_file_type )
+
+
+
+
+
+'''
+Plot area fraction
+'''
+
+# define function to calculate fractional area for Ssh element
+def fraction_S(sweep):
+    return (np.power(moo3_thickness/results_dict['spacecharges']['St']['I0']['Thickness'], 3)
+    * np.power(results_dict['spacecharges']['Ssh']['I0'][sweep]
+             /results_dict['spacecharges']['St']['I0'][sweep], 2))
+
+# find fraction for Ssh element
+St_df['fraction'] = fraction_S('ave')
+St_df['fraction up'] = fraction_S('up')
+St_df['fraction down'] = fraction_S('down')
+
+# define function to calculate fraction area for Tsh element
+def fraction_T(sweep):
+    l = Tt_df['slope'] - 1
+    return (np.power(moo3_thickness/results_dict['transports']['Tt']['I0']['Thickness'], 
+              2 * l + 1)
+    * np.power(results_dict['transports']['Tsh']['I0'][sweep]
+             /results_dict['transports']['Tt']['I0'][sweep], l + 1))
+
+# find fraction for Tsh element
+Tt_df['fraction'] = fraction_T('ave')
+Tt_df['fraction up'] = fraction_T('up')
+Tt_df['fraction down'] = fraction_T('down')
+
+# add S fraction data to plot
+data_to_ax(ax3, St_df, St_df.index[0], 'Thickness', 'fraction', '#00f2ff')
+data_to_ax(ax3, St_df, St_df.index[1], 'Thickness', 'fraction', '#f700ff')
+data_to_ax(ax3, St_df, St_df.index[2], 'Thickness', 'fraction', '#f6ff00')
+
+# add T fraction data to plot
+data_to_ax(ax3, Tt_df, Tt_df.index[0], 'Thickness', 'fraction', '#0051ff')
+data_to_ax(ax3, Tt_df, Tt_df.index[1], 'Thickness', 'fraction', '#8c00ff')
+data_to_ax(ax3, Tt_df, Tt_df.index[2], 'Thickness', 'fraction', '#ff9d00')
+
+ax3.legend()
+
+# Save figure
+fig3.savefig(sim_folder + 'Fraction' + plot_file_type )
