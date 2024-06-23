@@ -14,11 +14,11 @@ model_version = 'Model V21-1'
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
-sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
-#sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1\\"
+#sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1\\"
 
 # save as .pdf or .png?
-plot_file_type = '.pdf'
+plot_file_type = '.png'
 
 #plot settings
 black_background = True
@@ -33,7 +33,7 @@ Area = 0.00000121
 
 # Device parameters
 epsilon_C60 = 2.3
-Nt = 8e23
+Nt = 1e24
 
 # constants
 epsilon0 = 8.854e-12
@@ -396,8 +396,6 @@ Calculations for St
 # get df for St
 df = results_dict['spacecharges']['St']['I0']
 
-print(df)
-
 # calculate d^-3
 df['d^-3'] = np.power(df['Thickness'] * 1e-9, -3)
 
@@ -647,7 +645,7 @@ Nc_fit_Tt = curve_fit(linear_function,
                       method='lm')
 
 # d^-(2l+1) x values for fit line
-xfit_np_Tt = np.linspace(1e48, 1e65)
+xfit_np_Tt = np.linspace(1e47, 1e64)
 
 # y values for fit line
 yfit_np_Tt = Nc_fit_Tt[0][0]*xfit_np_Tt + Nc_fit_Tt[0][1]
@@ -730,7 +728,7 @@ Nc_fit_Tsh = curve_fit(linear_function,
                       method='lm')
 
 # d^-(2l+1) x values for fit line
-xfit_np_Tsh = np.linspace(1e55, 1e70)
+xfit_np_Tsh = np.linspace(1e52, 1e68)
 
 # y values for fit line
 yfit_np_Tsh = Nc_fit_Tsh[0][0]*xfit_np_Tsh + Nc_fit_Tsh[0][1]
