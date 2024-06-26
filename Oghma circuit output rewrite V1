@@ -26,7 +26,7 @@ device_dict = {1 : 'c60 30nm d10 up',
                6 : 'c60 60nm d14 down',
                9 : 'pause\\v19-4 c60 30nm d23 pause up'
                }
-
+ 
 # save as .pdf or .png?
 plot_file_type = '.png'
 
@@ -53,7 +53,7 @@ elements = {
   'Rb':    {'color': '#00e1ff', 'linewidth': 1, 'linestyle': '-',  'label': 'Barrier leg'}, 
   'Rbsh':  {'color': '#008394', 'linewidth': 1, 'linestyle': '-.', 'label': 'Barrier Rsh'}, 
   'Rbdsh': {'color': '#008394', 'linewidth': 1, 'linestyle': '--', 'label': 'Barrier Rdsh'}, 
-'Sb':    {'color': '#008394', 'linewidth': 1, 'linestyle': ':',  'label': 'Barrier SCLC'}
+  'Sb':    {'color': '#008394', 'linewidth': 1, 'linestyle': ':',  'label': 'Barrier SCLC'}
 }
 
 fit_name = 'jv'
@@ -184,6 +184,8 @@ for x in range(len(folders)):
 
 # drop extra segments column
 data_df = data_df.drop(columns=['segments'])
+
+
 
 
 
@@ -453,7 +455,7 @@ if plot_slopes == True:
   # Add fit data to slope plot
   axs1.plot(v_fit, j_fit_slope, linewidth=fit_linewidth, color=fit_color, linestyle='-')
   
-  
+
 
 
 
@@ -488,6 +490,12 @@ if plot_slopes == True:
 axs0.legend()
 
 #plt.show()
+
+
+
+
+
+
 
 
 
@@ -537,3 +545,33 @@ if save == True:
   plt.savefig(figurepath)
 
   print('Figure Saved', '\n')
+
+
+
+
+
+
+
+
+
+  '''
+  Add circuit legs to dataframe and save to results folder
+  '''
+
+  # empty datafram
+  circuit_legs_df = pd.DataFrame()
+
+  # add voltage
+  circuit_legs_df['Voltage [V]'] = voltage
+
+  # add circuit legs
+  circuit_legs_df['Contact'] = np.sort(data_df.loc['i', 'Rc'])
+  circuit_legs_df['Shunt'] = np.sort(data_df.loc['i', 'Rsh'])
+  circuit_legs_df['Barrier'] = np.sort(data_df.loc['i', 'Rb'])
+
+  # create path to file to save to
+  filename = Path(resultsfolder_path) / 'Circuit_legs.txt'
+
+  # save to results folder
+  circuit_legs_df.to_csv(filename, sep='\t', index=False)
+
