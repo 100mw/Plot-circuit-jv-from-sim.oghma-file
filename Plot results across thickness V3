@@ -14,8 +14,8 @@ model_version = 'Model V21-1'
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
-sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
-#sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1\\"
+#sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1\\"
 
 # save as .pdf or .png?
 plot_file_type = '.png'
@@ -33,8 +33,8 @@ Area = 0.00000121
 
 # Device parameters
 epsilon_C60 = 2.3
-Nt_Tt = 3e24
-Nt_Tsh = 3e23
+Nt_Tt = 2.84e24
+Nt_Tsh = 3.25e23
 
 # constants
 epsilon0 = 8.854e-12
@@ -239,11 +239,11 @@ i=1
 fig2.canvas.manager.set_window_title(folder_path.name + " " + str(i)) 
 
 # Set axes labels
-ax2_b.set_xlabel("d^{-(2l+1)} [m^{-(2l+1)}]")
-ax2_a.set_ylabel("T_0")
+ax2_b.set_xlabel(r" $ d^{-(2l+1)}\ [{\rm m}^{-(2l+1)}] $ ")
+ax2_a.set_ylabel(r" $ (T_0 \lambda)^{l+1}/(q \mu A)((q N_t (l+1))/(\epsilon l))^l\  [{\rm m}^{-3(2l+1)}] $ ") # where lambda = ((l+1)/(2l+1))^{l+1}
 ax2_a.set_xscale('log')
 ax2_a.set_yscale('log')
-ax2_b.set_ylabel("T_0")
+ax2_b.set_ylabel(r" $ (T_0 \lambda)^{l+1}/(q \mu \alpha A)((q N_t (l+1))/(\epsilon l))^l\ [{\rm m}^{-3(2l+1)}] $ ")
 ax2_b.set_xscale('log')
 ax2_b.set_yscale('log')
 
@@ -434,9 +434,10 @@ yfit_np = Jo_sc_fit[0][0]*xfit_np + Jo_sc_fit[0][1]
 # calculate mobilty
 mu = 8/9*Jo_sc_fit[0][0]/epsilon0/epsilon_C60
 
+print()
 print('mobility =', mu)
 print('offset =', Jo_sc_fit[0][1])
-
+print()
 
 
 
@@ -642,27 +643,40 @@ Tt_df['y_values'] = y_values(Tt_df['ave'], Tt_df['slope'], Tt_df['mu'], Nt_Tt, 1
 Tt_df['y_values up'] = y_values(Tt_df['up'], Tt_df['slope'], Tt_df['mu up'], Nt_Tt, 1)
 Tt_df['y_values down'] = y_values(Tt_df['down'], Tt_df['slope'], Tt_df['mu down'], Nt_Tt, 1)
 
-# Nc fit
+# Nc fit guess
 m_guess = 5e25
-b_guess = 0
+
+# function for a line without offset
+def line_function(x, m):
+    return m * x
+
+# convert x and y values to float
+Tt_x_np = Tt_df['x_values'].to_numpy()
+Tt_y_np = Tt_df['y_values'].to_numpy()
 
 # Nc fit
-Nc_fit_Tt = curve_fit(linear_function, 
-                      pd.to_numeric(Tt_df['x_values']),
-                      pd.to_numeric(Tt_df['y_values']),
-                      p0=[m_guess, b_guess],
+Nc_fit_Tt, pcov = curve_fit(line_function, 
+                      Tt_x_np,
+                      Tt_y_np,
+                      p0=[m_guess],
                       method='lm')
 
+# select fit result
+Nc_Tt = Nc_fit_Tt[0]
+
+# fit error
+rmse_Nc_Tt = np.sqrt(np.sum(np.power((Nc_Tt*Tt_x_np - Tt_y_np)/Tt_y_np, 2)))
+
 # d^-(2l+1) x values for fit line
-xfit_np_Tt = np.linspace(1e47, 1e64)
+xfit_np_Tt = np.linspace(1e45, 1e68)
 
 # y values for fit line
-yfit_np_Tt = Nc_fit_Tt[0][0]*xfit_np_Tt + Nc_fit_Tt[0][1]
-
-# calculate Nc
-Nc_Tt = Nc_fit_Tt[0][0]
+yfit_np_Tt = Nc_Tt*xfit_np_Tt
 
 print('Nc Tt =', Nc_Tt)
+print('error = ', rmse_Nc_Tt)
+print()
+
 
 
 
@@ -727,27 +741,33 @@ Tsh_df['y_values down'] = y_values(Tsh_df['down'], Tsh_df['slope'], Tsh_df['mu d
 
 # Nc fit
 m_guess = 5e25
-b_guess = 0
+
+# convert x and y values to float
+Tsh_x_np = Tsh_df['x_values'].to_numpy()
+Tsh_y_np = Tsh_df['y_values'].to_numpy()
 
 # Nc fit
-Nc_fit_Tsh = curve_fit(linear_function, 
-                      pd.to_numeric(Tsh_df['x_values']),
-                      pd.to_numeric(Tsh_df['y_values']),
-                      p0=[m_guess, b_guess],
+Nc_fit_Tsh, pcov = curve_fit(line_function, 
+                      Tsh_x_np,
+                      Tsh_y_np,
+                      p0=[m_guess],
                       method='lm')
 
+# select fit result
+Nc_Tsh = Nc_fit_Tsh[0]
+
+# fit error
+rmse_Nc_Tsh = np.sqrt(np.sum(np.power((Nc_Tsh*Tsh_x_np - Tsh_y_np)/Tsh_y_np, 2)))
+
 # d^-(2l+1) x values for fit line
-xfit_np_Tsh = np.linspace(1e52, 1e68)
+xfit_np_Tsh = np.linspace(1e52, 1e69)
 
 # y values for fit line
-yfit_np_Tsh = Nc_fit_Tsh[0][0]*xfit_np_Tsh + Nc_fit_Tsh[0][1]
+yfit_np_Tsh = Nc_Tsh*xfit_np_Tsh
 
-# calculate Nc
-Nc_Tsh = Nc_fit_Tsh[0][0]
-
-print('Nc =', Nc_Tsh)
-
-
+print('Nc Tsh =', Nc_Tsh)
+print('error = ', rmse_Nc_Tsh)
+print()
 
 
 
@@ -837,6 +857,10 @@ ax2_b.text(0.02, 0.95, 'Nt_Tsh = ' + format(Nt_Tsh,'.2e'), transform=ax2_b.trans
 #text box for Nc
 ax2_a.text(0.02, 0.9, 'Nc_Tt = ' + format(Nc_Tt,'.2e'), transform=ax2_a.transAxes, ha='left')
 ax2_b.text(0.02, 0.9, 'Nc_Tsh = ' + format(Nc_Tsh,'.2e'), transform=ax2_b.transAxes, ha='left')
+
+#text box for error
+ax2_a.text(0.02, 0.85, 'error_Tt = ' + format(rmse_Nc_Tt,'.2e'), transform=ax2_a.transAxes, ha='left')
+ax2_b.text(0.02, 0.85, 'error_Tsh = ' + format(rmse_Nc_Tsh,'.2e'), transform=ax2_b.transAxes, ha='left')
 
 #text box for geometric mean
 ax2_a.text(0.3, 0.025, 'Nt_mean = ' + format(Nt_mean,'.2e'), transform=ax2_a.transAxes, ha='left')
