@@ -7,14 +7,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import re
 
-model_version = 'Model V21-1' 
+model_version = 'Model V21-3' 
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder_directory = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/v19-2 c60 60nm d14 down/"
-sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1"
+sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3"
 
 # select device from dictionary
-device = 6
+device = 5
 
 device_dict = {1 : 'c60 30nm d10 up',
                2 : 'c60 30nm d10 down',
@@ -28,7 +28,7 @@ device_dict = {1 : 'c60 30nm d10 up',
                }
  
 # save as .pdf or .png?
-plot_file_type = '.png'
+plot_file_type = '.pdf'
 
 
 '''
@@ -81,8 +81,10 @@ error_color = '#2d2d2d'
 Area = 0.00000121	
 
 calculate_mobility = True
+
 epsilon0 = 8.854e-12
 epsilon_C60 = 2.3
+thickness_MoO3 = 10
 
 # Save fit parameter values?
 save = True
@@ -375,14 +377,15 @@ if write_model_version == True:
   #text box for model version
   axs0.text(0.98, 0.025, model_version, transform=axs0.transAxes, ha='right')		
 
-  # open file containing error
+  # open file containing total error
   with open(sim_folder_path / 'fiterror.dat', 'r') as file:
     error_total = float(file.read())
 
   #text box for error
   axs0.text(0.02, 0.025, 'Error = ' + str(error_total), transform=axs0.transAxes, ha='left')
 
-
+print('error = ', error_total)
+print()
 
 
 
@@ -482,7 +485,7 @@ if plot_slopes == True:
 
   axs1.set_ylim(			
                 0.5,
-                np.max(j_data_slope[noise_threshold_index :])*1.1				# grab max from data
+                np.max(j_fit_slope)*1.2			# grab max from data
   )
 
 
@@ -494,6 +497,41 @@ axs0.legend()
 
 
 
+
+
+
+
+'''
+Calculate area fractions
+'''
+
+# shunt area fraction from space charge currents
+I0_Ssh = powers_df.loc['Ssh', 'I0']
+I0_Tsh = powers_df.loc['St', 'I0']
+(fraction_S) = np.power(thickness_MoO3 * I0_Ssh
+                          / thickness_C60 / I0_Tsh , 2)
+
+print('S area fraction:')
+print(fraction_S)
+print()
+
+# function for MH power term
+def power_term(slope):
+   l = slope - 1
+   return np.power((l + 1) / l, l) * np.power((l + 1) / (2*l + 1), l + 1)
+
+# shunt area fraction from trapped charge currents
+lsh = powers_df.loc['Tsh', 'Power']
+I0_Tsh = powers_df.loc['Tsh', 'I0']
+lt = powers_df.loc['Tt', 'Power']
+I0_Tt = powers_df.loc['Tt', 'I0']
+fraction_T = (np.power(thickness_MoO3, 2*lsh + 1) / np.power(thickness_C60, 2*lt + 1) *
+               np.power(I0_Tsh, lsh + 1) / np.power(I0_Tt, lt + 1) *
+               power_term(lsh) / power_term(lt))
+
+print('T area fraction:') 
+print(fraction_T)
+print()
 
 
 
@@ -565,9 +603,9 @@ if save == True:
   circuit_legs_df['Voltage [V]'] = voltage
 
   # add circuit legs
-  circuit_legs_df['Contact'] = np.sort(data_df.loc['i', 'Rc'])
-  circuit_legs_df['Shunt'] = np.sort(data_df.loc['i', 'Rsh'])
-  circuit_legs_df['Barrier'] = np.sort(data_df.loc['i', 'Rb'])
+  circuit_legs_df['Contact [A/m^2]'] = np.sort(data_df.loc['i', 'Rc'] / Area)
+  circuit_legs_df['Shunt [A/m^2]'] = np.sort(data_df.loc['i', 'Rsh'] / Area / (fraction_S))
+  circuit_legs_df['Barrier [A/m^2]'] = np.sort(data_df.loc['i', 'Rb'] / Area)
 
   # create path to file to save to
   filename = Path(resultsfolder_path) / 'Circuit_legs.txt'
