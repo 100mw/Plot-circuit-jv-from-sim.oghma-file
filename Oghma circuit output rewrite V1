@@ -58,7 +58,12 @@ elements = {
 
 fit_name = 'jv'
 
+calculate_mobility = True
 
+# if above is True, list device specific values
+epsilon_C60 = 2.3
+thickness_MoO3 = 10
+Nt = 1e24
 
 # Set plot display properties
 black_background = True
@@ -80,11 +85,8 @@ error_color = '#2d2d2d'
 # Device area [m^2]
 Area = 0.00000121	
 
-calculate_mobility = True
-
+q = 1.6e-19
 epsilon0 = 8.854e-12
-epsilon_C60 = 2.3
-thickness_MoO3 = 10
 
 # Save fit parameter values?
 save = True
@@ -504,34 +506,36 @@ axs0.legend()
 '''
 Calculate area fractions
 '''
+if calculate_mobility == True:
 
-# shunt area fraction from space charge currents
-I0_Ssh = powers_df.loc['Ssh', 'I0']
-I0_Tsh = powers_df.loc['St', 'I0']
-(fraction_S) = (np.power(thickness_MoO3 / thickness_C60 , 3) * 
-                np.power(I0_Ssh / I0_Tsh, 2))
+  # shunt area fraction from space charge currents
+  I0_Ssh = powers_df.loc['Ssh', 'I0']
+  I0_Tsh = powers_df.loc['St', 'I0']
+  (fraction_S) = (np.power(thickness_MoO3 / thickness_C60 , 3) * 
+                  np.power(I0_Ssh / I0_Tsh, 2))
 
-print('S area fraction:')
-print(fraction_S)
-print()
+  print('S area fraction:')
+  print(fraction_S)
+  print()
 
-# function for MH power term
-def power_term(slope):
-   l = slope - 1
-   return np.power((l + 1) / l, l) * np.power((l + 1) / (2*l + 1), l + 1)
+  # function for MH power term
+  def power_term(slope):
+    l = slope - 1
+    return np.power((l + 1) / l, l) * np.power((l + 1) / (2*l + 1), l + 1)
 
-# shunt area fraction from trapped charge currents
-lsh = powers_df.loc['Tsh', 'Power']
-I0_Tsh = powers_df.loc['Tsh', 'I0']
-lt = powers_df.loc['Tt', 'Power']
-I0_Tt = powers_df.loc['Tt', 'I0']
-fraction_T = (np.power(thickness_MoO3, 2*lsh + 1) / np.power(thickness_C60, 2*lt + 1) *
-               np.power(I0_Tsh, lsh + 1) / np.power(I0_Tt, lt + 1) *
-               power_term(lsh) / power_term(lt))
+  # shunt area fraction from trapped charge currents
+  lsh = powers_df.loc['Tsh', 'Power']
+  I0_Tsh = powers_df.loc['Tsh', 'I0']
+  lt = powers_df.loc['Tt', 'Power']
+  I0_Tt = powers_df.loc['Tt', 'I0']
+  fraction_T = (np.power(thickness_MoO3 * 1e-9, 2*lsh + 1) / np.power(thickness_C60  * 1e-9, 2*lt + 1) *
+                np.power(I0_Tsh, lsh + 1) / np.power(I0_Tt, lt + 1) *
+                power_term(lsh) / power_term(lt) *
+                np.power(q * Nt / epsilon0 / epsilon_C60, lsh - lt))
 
-print('T area fraction:') 
-print(fraction_T)
-print()
+  print('T area fraction:') 
+  print(fraction_T)
+  print()
 
 
 
