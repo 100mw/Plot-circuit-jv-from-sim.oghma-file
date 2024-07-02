@@ -14,7 +14,7 @@ model_version = 'Model V21-3'
 sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3"
 
 # select device from dictionary
-device = 1
+device = 2
 
 device_dict = {1 : 'c60 30nm d10 up',
                2 : 'c60 30nm d10 down',
@@ -63,7 +63,7 @@ calculate_mobility = True
 # if above is True, list device specific values
 epsilon_C60 = 2.3
 thickness_MoO3 = 10
-Nt = 1e24
+Nt = 5e23
 
 # Set plot display properties
 black_background = True
@@ -506,6 +506,7 @@ axs0.legend()
 '''
 Calculate area fractions
 '''
+
 if calculate_mobility == True:
 
   # shunt area fraction from space charge currents
@@ -519,18 +520,20 @@ if calculate_mobility == True:
   print()
 
   # function for MH power term
-  def power_term(slope):
-    l = slope - 1
+  def power_term(l):
     return np.power((l + 1) / l, l) * np.power((l + 1) / (2*l + 1), l + 1)
 
   # shunt area fraction from trapped charge currents
-  lsh = powers_df.loc['Tsh', 'Power']
+  lsh = powers_df.loc['Tsh', 'Power']-1
   I0_Tsh = powers_df.loc['Tsh', 'I0']
-  lt = powers_df.loc['Tt', 'Power']
+  lt = powers_df.loc['Tt', 'Power']-1
   I0_Tt = powers_df.loc['Tt', 'I0']
-  fraction_T = (np.power(thickness_MoO3 * 1e-9, 2*lsh + 1) / np.power(thickness_C60  * 1e-9, 2*lt + 1) *
-                np.power(I0_Tsh, lsh + 1) / np.power(I0_Tt, lt + 1) *
-                power_term(lsh) / power_term(lt) *
+  fraction_T = (np.power(thickness_MoO3 * 1e-9, 2*lsh + 1) / 
+                np.power(thickness_C60  * 1e-9, 2*lt + 1) *
+                np.power(I0_Tsh, lsh + 1) / 
+                np.power(I0_Tt, lt + 1) *
+                power_term(lsh) / 
+                power_term(lt) *
                 np.power(q * Nt / epsilon0 / epsilon_C60, lsh - lt))
 
   print('T area fraction:') 
