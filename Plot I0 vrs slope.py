@@ -1,32 +1,46 @@
-'''
-Calculation of Io from l
-'''
+# Import modules python3.12.2
 
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
+import re
+import json
 
-Nt = 6e23
-Nc = 7e25
+# Type path to folder here (Mac/Windows/Unix compatible):
+#sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3\\"
 
-mobility = 5e-8
+# Guess values for Nt and Nc
+Nt = 3e23
+Nc = 1e25
+
+mobility = 4.4e-8
 Area = 1.21e-6
+area_fraction = 1e-5
 
-area_fraction = 0.002
-trap_fraction = 5
-carrier_fraction = 0.5
+
+trap_fraction = 1
+carrier_fraction = 1
 
 q = 1.6e-19
 epsilon0 = 8.854e-12
 epsilon_C60 = 2.3
 
-slope_np = np.linspace(3, 5, 100)
+slope_np = np.linspace(2, 8, 50)
 
-d_t = 60e-9
 d_sh = 10e-9
 
 
+
+
+
+'''
+Calculate I0 for TLC in transport and shunt layers
+'''
+
 # define function for y values
 def I0(slope, thickness, area_fraction, trap_fraction, carrier_fraction):
+    
     l = slope - 1
     Ncmu_term = q * carrier_fraction * Nc * mobility
     trap_term = np.power(epsilon0 * epsilon_C60 / q / trap_fraction / Nt * l / (l + 1), l)
@@ -37,10 +51,24 @@ def I0(slope, thickness, area_fraction, trap_fraction, carrier_fraction):
 
 
 # transport I0 curve
-I0_t_np = I0(slope_np, d_t, 1, 1, 1)
+I0_t_30nm_np = I0(slope_np, 30e-9, 1, 1, 1)
+I0_t_40nm_np = I0(slope_np, 40e-9, 1, 1, 1)
+I0_t_60nm_np = I0(slope_np, 60e-9, 1, 1, 1)
 
 # shunt I0 curve
-I0_sh_np = I0(slope_np, d_sh, area_fraction, trap_fraction, carrier_fraction)
+I0_sh_30nm_np = I0(slope_np, d_sh, 5e-5, trap_fraction, carrier_fraction)
+I0_sh_40nm_np = I0(slope_np, d_sh, 3e-5 , trap_fraction, carrier_fraction)
+I0_sh_60nm_np = I0(slope_np, d_sh, 1e-5, trap_fraction, carrier_fraction)
+
+
+
+
+
+
+'''
+Set up I0 vrs l plot
+'''
+
 
 # black background
 plt.style.use('dark_background')
@@ -57,16 +85,171 @@ ax.set_ylabel(' I0 ')
 
 
 
+
+
+
+
+'''
+Add I0 curves to plot
+'''
+
 # add to plot
 ax.plot(slope_np, 
-        I0_t_np,
+        I0_t_30nm_np,
         linestyle = '-',
-        label = 'transport')
+        label = 'transport 30nm',
+        color = 'cyan')
 
 ax.plot(slope_np, 
-        I0_sh_np,
+        I0_t_40nm_np,
         linestyle = '-',
-        label = 'shunt')
+        label = 'transport 40nm',
+        color = 'yellow')
+
+ax.plot(slope_np, 
+        I0_t_60nm_np,
+        linestyle = '-',
+        label = 'transport 60nm',
+        color = 'purple')
+
+ax.plot(slope_np, 
+        I0_sh_30nm_np,
+        linestyle = '-',
+        label = 'shunt',
+        color = '#11606d')
+
+ax.plot(slope_np, 
+        I0_sh_40nm_np,
+        linestyle = '-',
+        label = 'shunt',
+        color = '#616d11')
+
+ax.plot(slope_np, 
+        I0_sh_60nm_np,
+        linestyle = '-',
+        label = 'shunt',
+        color = '#5d225c')
+
+
+
+'''
+Load all saved circuit results in sim_folder
+'''
+ 
+# Convert string to path 
+folder_path = Path(sim_folder)
+
+# Create dictionary for all device data
+data_dict = {}
+
+# find folders in sim directory
+subfolders = [entry for entry in folder_path.iterdir() if entry.is_dir()]
+
+# Filter subdirectories that end with "results"
+matching_folders = [folder for folder in subfolders if folder.name.endswith("results")]
+
+for index, folders in enumerate(matching_folders):
+
+    # look for 'fit values' file with greatest last digit
+    filename = folders / 'fit values .json'
+    last_digit=1
+    while (new_filename := filename.with_stem(f"{filename.stem}{last_digit}")).exists():
+        last_digit += 1
+
+        # open diction from file
+        with open(new_filename, 'r') as f:
+            file_dict = json.load(f)
+
+    
+
+    # Search folder name for device parameters
+    folder_name = folders.name
+    match = re.search(r'(..)nm', folder_name)
+    thickness = int(match.group(1))
+    match = re.search(r'd(..)', folder_name)
+    age = int(match.group(1))
+    match = re.search(r'\b(?:up|down)\b', folder_name)
+    sweep = match.group().lower()
+
+    # Add device properties to loaded dictionary
+    file_dict['thickness'] = thickness
+    file_dict['age'] = age
+    file_dict['sweep'] = sweep
+    
+    # Add device to main dictionary 
+    data_dict[str(index)] = file_dict
+
+
+
+
+
+
+'''
+Calculate area fractions
+
+
+# function for MH power term
+def power_term(l):
+        return np.power((l + 1) / l, l) * np.power((l + 1) / (2*l + 1), l + 1)
+
+# shunt area fraction from trapped charge currents
+lsh = powers_df.loc['Tsh', 'Power']-1
+I0_Tsh = powers_df.loc['Tsh', 'I0']
+lt = powers_df.loc['Tt', 'Power']-1
+I0_Tt = powers_df.loc['Tt', 'I0']
+fraction_T = (np.power(thickness_MoO3 * 1e-9, 2*lsh + 1) / 
+        np.power(thickness_C60  * 1e-9, 2*lt + 1) *
+        np.power(I0_Tsh, lsh + 1) / 
+        np.power(I0_Tt, lt + 1) *
+        power_term(lsh) / 
+        power_term(lt) *
+        np.power(q * Nt / epsilon0 / epsilon_C60, lsh - lt))
+
+print('T area fraction:') 
+print(fraction_T)
+print()
+
+'''
+
+
+
+
+'''
+Add I0 points to plot
+'''
+
+# function to determine marker from sweep direction
+def marker(sweep):
+     if sweep == 'up':
+          return '^'
+     elif sweep == 'down':
+          return 'v'
+     elif sweep == 'ave':
+          return 'o'
+
+# function to determine color from device thickness
+def color(thickness):
+     if thickness == 30:
+          return 'cyan'
+     elif thickness == 40:
+          return 'yellow'
+     elif thickness == 60:
+          return 'purple'
+
+
+for device in data_dict:
+    
+        ax.plot(data_dict[device]['powers']['Power']['Tt'],
+                data_dict[device]['powers']['I0']['Tt'],
+                marker = marker(data_dict[device]['sweep']),
+                color = color(data_dict[device]['thickness']))
+        
+        ax.plot(data_dict[device]['powers']['Power']['Tsh'],
+                data_dict[device]['powers']['I0']['Tsh'],
+                marker = marker(data_dict[device]['sweep']),
+                color = 'orange')
+
+
 
 plt.legend()
 
