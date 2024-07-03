@@ -16,8 +16,6 @@ Nc = 1e25
 
 mobility = 4.4e-8
 Area = 1.21e-6
-area_fraction = 1e-5
-
 
 trap_fraction = 1
 carrier_fraction = 1
@@ -28,107 +26,10 @@ epsilon_C60 = 2.3
 
 slope_np = np.linspace(2, 8, 50)
 
-d_sh = 10e-9
+thickness_MoO3 = 10e-9
 
 
 
-
-
-'''
-Calculate I0 for TLC in transport and shunt layers
-'''
-
-# define function for y values
-def I0(slope, thickness, area_fraction, trap_fraction, carrier_fraction):
-    
-    l = slope - 1
-    Ncmu_term = q * carrier_fraction * Nc * mobility
-    trap_term = np.power(epsilon0 * epsilon_C60 / q / trap_fraction / Nt * l / (l + 1), l)
-    slope_term = np.power((2 * l + 1) / (l + 1), l + 1)
-    thick_term = np.power(thickness, 2*l + 1)
-
-    return np.power(Ncmu_term * trap_term * slope_term / thick_term * area_fraction * Area, 1/(l+1))
-
-
-# transport I0 curve
-I0_t_30nm_np = I0(slope_np, 30e-9, 1, 1, 1)
-I0_t_40nm_np = I0(slope_np, 40e-9, 1, 1, 1)
-I0_t_60nm_np = I0(slope_np, 60e-9, 1, 1, 1)
-
-# shunt I0 curve
-I0_sh_30nm_np = I0(slope_np, d_sh, 5e-5, trap_fraction, carrier_fraction)
-I0_sh_40nm_np = I0(slope_np, d_sh, 3e-5 , trap_fraction, carrier_fraction)
-I0_sh_60nm_np = I0(slope_np, d_sh, 1e-5, trap_fraction, carrier_fraction)
-
-
-
-
-
-
-'''
-Set up I0 vrs l plot
-'''
-
-
-# black background
-plt.style.use('dark_background')
-
-# plot curves
-fig, ax = plt.subplots(figsize = (5, 7), dpi=200)
-
-#adjust plot margins
-fig.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.2, hspace=0, wspace=0.4)
-
-# Set axes labels
-ax.set_xlabel(' slope ')
-ax.set_ylabel(' I0 ')
-
-
-
-
-
-
-
-'''
-Add I0 curves to plot
-'''
-
-# add to plot
-ax.plot(slope_np, 
-        I0_t_30nm_np,
-        linestyle = '-',
-        label = 'transport 30nm',
-        color = 'cyan')
-
-ax.plot(slope_np, 
-        I0_t_40nm_np,
-        linestyle = '-',
-        label = 'transport 40nm',
-        color = 'yellow')
-
-ax.plot(slope_np, 
-        I0_t_60nm_np,
-        linestyle = '-',
-        label = 'transport 60nm',
-        color = 'purple')
-
-ax.plot(slope_np, 
-        I0_sh_30nm_np,
-        linestyle = '-',
-        label = 'shunt',
-        color = '#11606d')
-
-ax.plot(slope_np, 
-        I0_sh_40nm_np,
-        linestyle = '-',
-        label = 'shunt',
-        color = '#616d11')
-
-ax.plot(slope_np, 
-        I0_sh_60nm_np,
-        linestyle = '-',
-        label = 'shunt',
-        color = '#5d225c')
 
 
 
@@ -186,30 +87,130 @@ for index, folders in enumerate(matching_folders):
 
 '''
 Calculate area fractions
+'''
 
+# function for area fractions
+def fraction_T(device, thickness_C60):
 
-# function for MH power term
-def power_term(l):
-        return np.power((l + 1) / l, l) * np.power((l + 1) / (2*l + 1), l + 1)
+        def power_term(l):
+             return (np.power((l + 1) / l, l) * np.power((l + 1) / (2*l + 1), l + 1))
 
-# shunt area fraction from trapped charge currents
-lsh = powers_df.loc['Tsh', 'Power']-1
-I0_Tsh = powers_df.loc['Tsh', 'I0']
-lt = powers_df.loc['Tt', 'Power']-1
-I0_Tt = powers_df.loc['Tt', 'I0']
-fraction_T = (np.power(thickness_MoO3 * 1e-9, 2*lsh + 1) / 
-        np.power(thickness_C60  * 1e-9, 2*lt + 1) *
-        np.power(I0_Tsh, lsh + 1) / 
-        np.power(I0_Tt, lt + 1) *
-        power_term(lsh) / 
-        power_term(lt) *
-        np.power(q * Nt / epsilon0 / epsilon_C60, lsh - lt))
+        lsh = data_dict[device]['powers']['Power']['Tsh']-1
+        I0_Tsh = data_dict[device]['powers']['I0']['Tsh']
+        lt = data_dict[device]['powers']['Tt', 'Power']-1
+        I0_Tt = data_dict[device]['powers']['Tt', 'I0']
+        return (np.power(thickness_MoO3 * 1e-9, 2*lsh + 1) / 
+                np.power(thickness_C60  * 1e-9, 2*lt + 1) *
+                np.power(I0_Tsh, lsh + 1) / 
+                np.power(I0_Tt, lt + 1) *
+                power_term(lsh) / 
+                power_term(lt) *
+                np.power(q * Nt / epsilon0 / epsilon_C60, lsh - lt))
 
 print('T area fraction:') 
 print(fraction_T)
 print()
 
+
+
+
+
+
 '''
+Calculate I0 for TLC in transport and shunt layers
+'''
+
+# define function for y values
+def I0(slope, thickness, area_fraction, trap_fraction, carrier_fraction):
+    
+    l = slope - 1
+    Ncmu_term = q * carrier_fraction * Nc * mobility
+    trap_term = np.power(epsilon0 * epsilon_C60 / q / trap_fraction / Nt * l / (l + 1), l)
+    slope_term = np.power((2 * l + 1) / (l + 1), l + 1)
+    thick_term = np.power(thickness, 2*l + 1)
+
+    return np.power(Ncmu_term * trap_term * slope_term / thick_term * area_fraction * Area, 1/(l+1))
+
+
+# transport I0 curve
+I0_t_30nm_np = I0(slope_np, 30e-9, 1, 1, 1)
+I0_t_40nm_np = I0(slope_np, 40e-9, 1, 1, 1)
+I0_t_60nm_np = I0(slope_np, 60e-9, 1, 1, 1)
+
+
+
+
+
+
+
+
+'''
+Set up I0 vrs l plot
+'''
+
+
+# black background
+plt.style.use('dark_background')
+
+# plot curves
+fig, ax = plt.subplots(figsize = (5, 7), dpi=200)
+
+#adjust plot margins
+fig.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.2, hspace=0, wspace=0.4)
+
+# Set axes labels
+ax.set_xlabel(' slope ')
+ax.set_ylabel(' I0 ')
+
+
+
+
+
+
+
+'''
+Add I0 curves to plot
+'''
+
+# add to plot
+ax.plot(slope_np, 
+        I0_t_30nm_np,
+        linestyle = '-',
+        label = 'transport 30nm',
+        color = 'cyan')
+
+ax.plot(slope_np, 
+        I0_t_40nm_np,
+        linestyle = '-',
+        label = 'transport 40nm',
+        color = 'yellow')
+
+ax.plot(slope_np, 
+        I0_t_60nm_np,
+        linestyle = '-',
+        label = 'transport 60nm',
+        color = 'purple')
+
+for device in data_dict:
+
+        I0_Tsh = I0(slope_np, 
+                    thickness_MoO3, 
+                    fraction_T(device, data_dict[device]['thickness']), 
+                    trap_fraction, 
+                    carrier_fraction)
+        
+        ax.plot(slope_np, 
+                I0_Tsh,
+                linestyle = '-',
+                label = 'shunt 30nm',
+                color = '#11606d')
+
+
+
+
+
+
+
 
 
 
