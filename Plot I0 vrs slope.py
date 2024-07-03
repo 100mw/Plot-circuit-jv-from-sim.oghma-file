@@ -11,8 +11,8 @@ import json
 sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3\\"
 
 # Guess values for Nt and Nc
-Nt = 3e23
-Nc = 1e25
+Nt = 7e23
+Nc = 5.5e26
 
 mobility = 4.4e-8
 Area = 1.21e-6
@@ -90,16 +90,18 @@ Calculate area fractions
 '''
 
 # function for area fractions
-def fraction_T(device, thickness_C60):
+def fraction_T(device):
 
         def power_term(l):
              return (np.power((l + 1) / l, l) * np.power((l + 1) / (2*l + 1), l + 1))
 
         lsh = data_dict[device]['powers']['Power']['Tsh']-1
         I0_Tsh = data_dict[device]['powers']['I0']['Tsh']
-        lt = data_dict[device]['powers']['Tt', 'Power']-1
-        I0_Tt = data_dict[device]['powers']['Tt', 'I0']
-        return (np.power(thickness_MoO3 * 1e-9, 2*lsh + 1) / 
+        lt = data_dict[device]['powers']['Power']['Tt']-1
+        I0_Tt = data_dict[device]['powers']['I0']['Tt']
+
+        thickness_C60 = data_dict[device]['thickness']
+        return (np.power(thickness_MoO3, 2*lsh + 1) / 
                 np.power(thickness_C60  * 1e-9, 2*lt + 1) *
                 np.power(I0_Tsh, lsh + 1) / 
                 np.power(I0_Tt, lt + 1) *
@@ -107,9 +109,7 @@ def fraction_T(device, thickness_C60):
                 power_term(lt) *
                 np.power(q * Nt / epsilon0 / epsilon_C60, lsh - lt))
 
-print('T area fraction:') 
-print(fraction_T)
-print()
+
 
 
 
@@ -183,29 +183,38 @@ ax.plot(slope_np,
         I0_t_40nm_np,
         linestyle = '-',
         label = 'transport 40nm',
-        color = 'yellow')
+        color = 'magenta')
 
 ax.plot(slope_np, 
         I0_t_60nm_np,
         linestyle = '-',
         label = 'transport 60nm',
-        color = 'purple')
+        color = 'yellow')
+
+
+# function to determine color from device thickness
+def color_Tsh(thickness):
+     if thickness == 30:
+          return '#124e56'
+     elif thickness == 40:
+          return '#3d1256'
+     elif thickness == 60:
+          return '#5e610b'
+
 
 for device in data_dict:
 
         I0_Tsh = I0(slope_np, 
                     thickness_MoO3, 
-                    fraction_T(device, data_dict[device]['thickness']), 
+                    fraction_T(device), 
                     trap_fraction, 
                     carrier_fraction)
         
         ax.plot(slope_np, 
                 I0_Tsh,
                 linestyle = '-',
-                label = 'shunt 30nm',
-                color = '#11606d')
-
-
+                label = 'shunt' + str(data_dict[device]['thickness']) + 'nm',
+                color = color_Tsh(data_dict[device]['thickness']))
 
 
 
@@ -229,27 +238,30 @@ def marker(sweep):
           return 'o'
 
 # function to determine color from device thickness
-def color(thickness):
+def color_Tt(thickness):
      if thickness == 30:
           return 'cyan'
      elif thickness == 40:
-          return 'yellow'
+          return 'magenta'
      elif thickness == 60:
-          return 'purple'
+          return 'yellow'
+     
 
 
+
+
+# add up/down points to plot
 for device in data_dict:
     
         ax.plot(data_dict[device]['powers']['Power']['Tt'],
                 data_dict[device]['powers']['I0']['Tt'],
                 marker = marker(data_dict[device]['sweep']),
-                color = color(data_dict[device]['thickness']))
+                color = color_Tt(data_dict[device]['thickness']))
         
         ax.plot(data_dict[device]['powers']['Power']['Tsh'],
                 data_dict[device]['powers']['I0']['Tsh'],
                 marker = marker(data_dict[device]['sweep']),
-                color = 'orange')
-
+                color = color_Tsh(data_dict[device]['thickness']))
 
 
 plt.legend()

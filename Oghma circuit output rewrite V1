@@ -14,7 +14,7 @@ model_version = 'Model V21-3'
 sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3"
 
 # select device from dictionary
-device = 2
+device = 3
 
 device_dict = {1 : 'c60 30nm d10 up',
                2 : 'c60 30nm d10 down',
