@@ -9,16 +9,16 @@ import re
 from collections import defaultdict
 from scipy.optimize import curve_fit
 
-model_version = 'Model V21-1' 
+model_version = 'Model V21-3' 
 
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
-sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-2\\"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3\\"
 
 # save as .pdf or .png?
-plot_file_type = '.png'
+plot_file_type = '.pdf'
 
 #plot settings
 black_background = True
@@ -33,12 +33,14 @@ Area = 0.00000121
 
 # Device parameters
 epsilon_C60 = 2.3
-Nt_Tt = 2.84e24
-Nt_Tsh = 3.25e23
+Nt_Tt = 6e23
+Nt_Tsh = 2e24
 
 # constants
 epsilon0 = 8.854e-12
 q = 1.6e-19
+k = 1.3806e-23
+T = 300
 
 # thickness of MoO3 in nm
 moo3_thickness = 10
@@ -253,7 +255,7 @@ ax2_b.set_yscale('log')
 
 
 '''
-Set up are fraction plot
+Set up area fraction plot
 '''
 
 fig3, ax3 = plt.subplots(figsize = (plot_height, plot_height), dpi=dpi)
@@ -269,6 +271,30 @@ fig3.canvas.manager.set_window_title(folder_path.name + " " + str(i))
 ax3.set_xlabel("Thickness [nm]")
 ax3.set_ylabel("Shunt area fraction")
 ax3.set_yscale('log')
+
+
+
+
+
+
+
+'''
+Set up Et plot
+'''
+
+fig4, ax4 = plt.subplots(figsize = (plot_height, plot_height), dpi=dpi)
+
+#adjust plot margins
+fig4.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.2, hspace=0, wspace=0.4)
+
+# Set title
+i=1
+fig4.canvas.manager.set_window_title(folder_path.name + " " + str(i)) 
+
+# Set axes labels
+ax4.set_xlabel("Thickness [nm]")
+ax4.set_ylabel("Trap depth [eV]")
+
 
 
 
@@ -668,7 +694,7 @@ Nc_Tt = Nc_fit_Tt[0]
 rmse_Nc_Tt = np.sqrt(np.sum(np.power((Nc_Tt*Tt_x_np - Tt_y_np)/Tt_y_np, 2)))
 
 # d^-(2l+1) x values for fit line
-xfit_np_Tt = np.linspace(1e45, 1e68)
+xfit_np_Tt = np.linspace(1e45, 1e91)
 
 # y values for fit line
 yfit_np_Tt = Nc_Tt*xfit_np_Tt
@@ -695,11 +721,27 @@ def fraction_S(sweep):
              /results_dict['spacecharges']['St']['I0'][sweep], 2))
 
 # find fraction for Ssh element
-St_df['fraction'] = fraction_S('ave')
-St_df['fraction up'] = fraction_S('up')
-St_df['fraction down'] = fraction_S('down')
+St_df['S fraction'] = fraction_S('ave')
+St_df['S fraction up'] = fraction_S('up')
+St_df['S fraction down'] = fraction_S('down')
 
+# function for MH power term
+def power_term(l):
+    return np.power((l + 1) / l, l) * np.power((l + 1) / (2*l + 1), l + 1)
 
+# define function to calculate fractional area for T elements
+'''def fraction_T(sweep, thickness_C60, Io_Tt, power_Tt, Io_Tsh, power_Tsh, Nt):
+    lsh = powers_df.loc['Tsh', 'Power']-1
+    I0_Tsh = powers_df.loc['Tsh', 'I0']
+    lt = powers_df.loc['Tt', 'Power']-1
+    I0_Tt = powers_df.loc['Tt', 'I0']
+    return (np.power(moo3_thickness * 1e-9, 2*lsh + 1) / 
+                np.power(thickness_C60  * 1e-9, 2*lt + 1) *
+                np.power(I0_Tsh, lsh + 1) / 
+                np.power(I0_Tt, lt + 1) *
+                power_term(lsh) / 
+                power_term(lt) *
+                np.power(q * Nt / epsilon0 / epsilon_C60, lsh - lt))'''
 
 
 
@@ -760,7 +802,7 @@ Nc_Tsh = Nc_fit_Tsh[0]
 rmse_Nc_Tsh = np.sqrt(np.sum(np.power((Nc_Tsh*Tsh_x_np - Tsh_y_np)/Tsh_y_np, 2)))
 
 # d^-(2l+1) x values for fit line
-xfit_np_Tsh = np.linspace(1e52, 1e69)
+xfit_np_Tsh = np.linspace(1e52, 1e98)
 
 # y values for fit line
 yfit_np_Tsh = Nc_Tsh*xfit_np_Tsh
@@ -772,13 +814,15 @@ print()
 
 
 
+
+
 '''
 Calculate geometric mean of Nt and Nc
-'''
+
 
 Nt_mean = np.power (Nt_Tt * Nt_Tsh, 0.5)
 Nc_mean = np.power (Nc_Tt * Nc_Tsh, 0.5)
-
+'''
 
 
 
@@ -821,7 +865,7 @@ def data_to_ax(axis, dataframe, row, x_values, y_values, color, marker):
 
 
 '''
-Add values to Nc plot
+Add Tt and Tsh values to Nc plot
 '''
 
 # add data to plot
@@ -862,11 +906,13 @@ ax2_b.text(0.02, 0.9, 'Nc_Tsh = ' + format(Nc_Tsh,'.2e'), transform=ax2_b.transA
 ax2_a.text(0.02, 0.85, 'error_Tt = ' + format(rmse_Nc_Tt,'.2e'), transform=ax2_a.transAxes, ha='left')
 ax2_b.text(0.02, 0.85, 'error_Tsh = ' + format(rmse_Nc_Tsh,'.2e'), transform=ax2_b.transAxes, ha='left')
 
+'''
 #text box for geometric mean
 ax2_a.text(0.3, 0.025, 'Nt_mean = ' + format(Nt_mean,'.2e'), transform=ax2_a.transAxes, ha='left')
 ax2_a.text(0.65, 0.025, 'Nc_mean = ' + format(Nc_mean,'.2e'), transform=ax2_a.transAxes, ha='left')
+'''
 
-ax2_a.legend()
+ax2_a.legend(loc='lower right')
 ax2_b.legend(loc='lower right')
 
 # Save figure
@@ -889,14 +935,59 @@ Plot area fraction
 St_df['Thickness up'] = St_df['Thickness']
 St_df['Thickness down'] = St_df['Thickness']
 
+# Set up/down thicknesses
+Tt_df['Thickness up'] = Tt_df['Thickness']
+Tt_df['Thickness down'] = Tt_df['Thickness']
+
 
 # add S fraction data to plot
-data_to_ax(ax3, St_df, St_df.index[0], 'Thickness', 'fraction', '#00f2ff', 'o')
-data_to_ax(ax3, St_df, St_df.index[1], 'Thickness', 'fraction', '#f700ff', 'o')
-data_to_ax(ax3, St_df, St_df.index[2], 'Thickness', 'fraction', '#f6ff00', 'o')
+data_to_ax(ax3, St_df, St_df.index[0], 'Thickness', 'S fraction', '#00f2ff', 'o')
+data_to_ax(ax3, St_df, St_df.index[1], 'Thickness', 'S fraction', '#f700ff', 'o')
+data_to_ax(ax3, St_df, St_df.index[2], 'Thickness', 'S fraction', '#f6ff00', 'o')
 
 
 ax3.legend()
 
 # Save figure
 fig3.savefig(sim_folder + 'Fraction' + plot_file_type )
+
+
+
+
+
+
+
+'''
+Plot trap depth
+'''
+
+
+# calculate trap depth
+Tt_df['Et'] = (Tt_df['slope']-1) / k / T
+Tt_df['Et up'] = (Tt_df['slope up']-1) / k / T
+Tt_df['Et down'] = (Tt_df['slope down']-1) / k / T
+
+# add S fraction data to plot
+data_to_ax(ax4, Tt_df, Tt_df.index[0], 'Thickness', 'Et', '#00f2ff', 'o')
+data_to_ax(ax4, Tt_df, Tt_df.index[1], 'Thickness', 'Et', '#f700ff', 'o')
+data_to_ax(ax4, Tt_df, Tt_df.index[2], 'Thickness', 'Et', '#f6ff00', 'o')
+
+# define exponential functioin
+def exp_func(x, a, b, c):
+    return a * np.exp(-b * x) + c
+
+print(Tt_df['Thickness'].values)
+
+# Use curve_fit to find optimized parameters
+popt, pcov = curve_fit(exp_func, Tt_df['Thickness'].values, Tt_df['Et'].values, p0=[0.5, 0.1, 0.05])
+
+
+
+x_fit_np = np.linspace(0, 100, 50)
+
+ax4.plot(Tt_df['Thickness'], exp_func(Tt_df['Thickness'], popt[0], popt[1], popt[2]))
+
+ax4.legend()
+
+# Save figure
+fig4.savefig(sim_folder + 'Traps' + plot_file_type )
