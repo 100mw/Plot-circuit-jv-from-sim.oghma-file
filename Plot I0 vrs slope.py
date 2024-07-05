@@ -142,6 +142,10 @@ I0_t_60nm_np = I0(slope_np, 60e-9, 1, 1, 1)
 
 
 
+'''
+Find average points and average area fractions, create new devices
+'''
+
 
 
 '''
@@ -262,6 +266,9 @@ for device in data_dict:
                 data_dict[device]['powers']['I0']['Tsh'],
                 marker = marker(data_dict[device]['sweep']),
                 color = color_Tsh(data_dict[device]['thickness']))
+
+
+
 
 
 plt.legend()
