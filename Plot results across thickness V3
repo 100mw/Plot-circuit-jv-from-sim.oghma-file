@@ -34,7 +34,7 @@ Area = 0.00000121
 # Device parameters
 epsilon_C60 = 2.3
 Nt_Tt = 6e23
-Nt_Tsh = 5e24
+Nt_Tsh = 3e24
 
 # constants
 epsilon0 = 8.854e-12
@@ -308,17 +308,20 @@ Set up I0 vrs l plot
 plt.style.use('dark_background')
 
 # plot curves
-fig5, ax5 = plt.subplots(figsize = (5, 7), dpi=200)
+fig5, (ax5a, ax5b) = plt.subplots(1, 2, figsize = (plot_width, plot_height), sharey = True, dpi=dpi)
+
 
 #adjust plot margins
 fig5.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.2, hspace=0, wspace=0.4)
 
 # Set axes labels
-ax5.set_xlabel(' slope ')
-ax5.set_ylabel(' I0 ')
-ax5.set_xscale('log')
-ax5.set_yscale('log')
-
+ax5a.set_xlabel(' slope ')
+ax5a.set_ylabel(' I0 ')
+ax5a.set_xscale('log')
+ax5a.set_yscale('log')
+ax5b.set_xlabel(' slope ')
+ax5b.set_ylabel(' I0 ')
+ax5b.set_xscale('log')
 
 
 
@@ -846,7 +849,7 @@ Nc_Tsh = Nc_fit_Tsh[0]
 rmse_Nc_Tsh = np.sqrt(np.sum(np.power((Nc_Tsh*Tsh_x_np - Tsh_y_np)/Tsh_y_np, 2)))
 
 # d^-(2l+1) x values for fit line
-xfit_np_Tsh = np.linspace(1e39, 1e48)
+xfit_np_Tsh = np.linspace(1e39, 1e70)
 
 # y values for fit line
 yfit_np_Tsh = Nc_Tsh*xfit_np_Tsh
@@ -1084,7 +1087,10 @@ I0_t_30nm_np = I0(slope_np, 30e-9, 1, Nt_Tt, Nc_fit_Tt)
 I0_t_40nm_np = I0(slope_np, 40e-9, 1, Nt_Tt, Nc_fit_Tt)
 I0_t_60nm_np = I0(slope_np, 60e-9, 1, Nt_Tt, Nc_fit_Tt)
 
-
+# shunt I0 curve
+I0_sh_30nm_np = I0(slope_np, 10e-9, Tt_df.loc[Tt_df['Thickness'] == 30, 'T fraction'].values , Nt_Tsh, Nc_fit_Tsh)
+I0_sh_40nm_np = I0(slope_np, 10e-9, Tt_df.loc[Tt_df['Thickness'] == 40, 'T fraction'].values , Nt_Tsh, Nc_fit_Tsh)
+I0_sh_60nm_np = I0(slope_np, 10e-9, Tt_df.loc[Tt_df['Thickness'] == 60, 'T fraction'].values , Nt_Tsh, Nc_fit_Tsh)
 
 
 '''
@@ -1092,31 +1098,59 @@ Plot I0 versus slope
 '''
 
 
-# Add I0 curves to plot
-ax5.plot(slope_np, 
+# Add I0 curves to transport plot
+ax5a.plot(slope_np, 
         I0_t_30nm_np,
         linestyle = ':',
         label = 'transport 30nm',
         color = 'cyan')
 
-ax5.plot(slope_np, 
+ax5a.plot(slope_np, 
         I0_t_40nm_np,
         linestyle = ':',
         label = 'transport 40nm',
         color = 'magenta')
 
-ax5.plot(slope_np, 
+ax5a.plot(slope_np, 
         I0_t_60nm_np,
         linestyle = ':',
         label = 'transport 60nm',
         color = 'yellow')
 
-ax5.plot(slope_np, 
+# draw fit line
+ax5a.plot(slope_np, 
         np.power(slope_np, 2.7) * 0.0095,
         linestyle = '--',
         label = 'transport 30nm',
         color = 'white')
 
+
+
+# Add I0 curves to shunt plot
+ax5b.plot(slope_np, 
+        I0_sh_30nm_np,
+        linestyle = ':',
+        label = 'transport 30nm',
+        color = 'cyan')
+
+ax5b.plot(slope_np, 
+        I0_sh_40nm_np,
+        linestyle = ':',
+        label = 'transport 40nm',
+        color = 'magenta')
+
+ax5b.plot(slope_np, 
+        I0_sh_60nm_np,
+        linestyle = ':',
+        label = 'transport 60nm',
+        color = 'yellow')
+
+# draw fit line
+ax5b.plot(slope_np, 
+        np.power(slope_np, 2.7) * 0.0095,
+        linestyle = '--',
+        label = 'transport 30nm',
+        color = 'white')
 
 # find I0
 Tt_df['I0'] = results_dict['transports']['Tt']['I0']['ave']
@@ -1124,19 +1158,19 @@ Tt_df['I0 up'] = results_dict['transports']['Tt']['I0']['up']
 Tt_df['I0 down'] = results_dict['transports']['Tt']['I0']['down']
 
 # find I0
-Tsh_df['I0'] = results_dict['transports']['Tt']['I0']['ave']
-Tsh_df['I0 up'] = results_dict['transports']['Tt']['I0']['up']
-Tsh_df['I0 down'] = results_dict['transports']['Tt']['I0']['down']
+Tsh_df['I0'] = results_dict['transports']['Tsh']['I0']['ave']
+Tsh_df['I0 up'] = results_dict['transports']['Tsh']['I0']['up']
+Tsh_df['I0 down'] = results_dict['transports']['Tsh']['I0']['down']
 
 # Add I0 data points
-data_to_ax(ax5, Tt_df, Tt_df.index[0], 'slope', 'I0', '#00f2ff', 'o')
-data_to_ax(ax5, Tt_df, Tt_df.index[1], 'slope', 'I0', '#f700ff', 'o')
-data_to_ax(ax5, Tt_df, Tt_df.index[2], 'slope', 'I0', '#f6ff00', 'o')
+data_to_ax(ax5a, Tt_df, Tt_df.index[0], 'slope', 'I0', '#00f2ff', 'o')
+data_to_ax(ax5a, Tt_df, Tt_df.index[1], 'slope', 'I0', '#f700ff', 'o')
+data_to_ax(ax5a, Tt_df, Tt_df.index[2], 'slope', 'I0', '#f6ff00', 'o')
 
 # Add I0 data points
-data_to_ax(ax5, Tsh_df, Tsh_df.index[0], 'slope', 'I0', '#00f2ff', 'o')
-data_to_ax(ax5, Tsh_df, Tsh_df.index[1], 'slope', 'I0', '#f700ff', 'o')
-data_to_ax(ax5, Tsh_df, Tsh_df.index[2], 'slope', 'I0', '#f6ff00', 'o')
+data_to_ax(ax5b, Tsh_df, Tsh_df.index[0], 'slope', 'I0', '#00f2ff', 'o')
+data_to_ax(ax5b, Tsh_df, Tsh_df.index[1], 'slope', 'I0', '#f700ff', 'o')
+data_to_ax(ax5b, Tsh_df, Tsh_df.index[2], 'slope', 'I0', '#f6ff00', 'o')
 
 # Save figure
 fig5.savefig(sim_folder + 'Io' + plot_file_type )
