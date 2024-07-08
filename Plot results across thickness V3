@@ -14,8 +14,8 @@ model_version = 'Model V21-3'
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
-#sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V21/V21-1/"
-sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3\\"
+sim_folder = "/Users/alexiarango/Library/CloudStorage/OneDrive-Personal/Documents/Oghma/Circuit/v21-3/"
+#sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3\\"
 
 # save as .pdf or .png?
 plot_file_type = '.pdf'
@@ -34,12 +34,12 @@ Area = 0.00000121
 # Device parameters
 epsilon_C60 = 2.3
 Nt_Tt = 6e23
-Nt_Tsh = 2e24
+Nt_Tsh = 5e24
 
 # constants
 epsilon0 = 8.854e-12
 q = 1.6e-19
-k = 1.3806e-23
+k = 8.62e-5
 T = 300
 
 # thickness of MoO3 in nm
@@ -226,11 +226,9 @@ ax1.set_ylabel(r'$ (8/9) (S_0/\epsilon_0 \epsilon)\ [A/(m^2 V^2)] $')
 Set up Tt plot
 '''
 
-fig2, (ax2_a, ax2_b) = plt.subplots(2,
-                                    1,
-                                    sharex=True,
-                                    figsize = (plot_height, plot_height * 1.5), 
-                                    gridspec_kw={'height_ratios':[1,1]},
+fig2, (ax2_a, ax2_b) = plt.subplots(1,
+                                    2,
+                                    figsize = (plot_width, plot_height),
                                     dpi=dpi)
 
 #adjust plot margins
@@ -258,7 +256,7 @@ ax2_b.set_yscale('log')
 Set up area fraction plot
 '''
 
-fig3, ax3 = plt.subplots(figsize = (plot_height, plot_height), dpi=dpi)
+fig3, (ax3a, ax3b) = plt.subplots(1, 2, figsize = (plot_width, plot_height), sharey = True, dpi=dpi)
 
 #adjust plot margins
 fig3.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.2, hspace=0, wspace=0.4)
@@ -268,9 +266,10 @@ i=1
 fig3.canvas.manager.set_window_title(folder_path.name + " " + str(i)) 
 
 # Set axes labels
-ax3.set_xlabel("Thickness [nm]")
-ax3.set_ylabel("Shunt area fraction")
-ax3.set_yscale('log')
+ax3a.set_xlabel("Thickness [nm]")
+ax3b.set_xlabel("Thickness [nm]")
+ax3a.set_ylabel("Shunt area fraction")
+ax3b.set_ylabel("Transport area fraction")
 
 
 
@@ -294,9 +293,31 @@ fig4.canvas.manager.set_window_title(folder_path.name + " " + str(i))
 # Set axes labels
 ax4.set_xlabel("Thickness [nm]")
 ax4.set_ylabel("Trap depth [eV]")
+ax4.set_ylim(0, 0.2)
 
 
 
+
+
+
+'''
+Set up I0 vrs l plot
+'''
+
+# black background
+plt.style.use('dark_background')
+
+# plot curves
+fig5, ax5 = plt.subplots(figsize = (5, 7), dpi=200)
+
+#adjust plot margins
+fig5.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.2, hspace=0, wspace=0.4)
+
+# Set axes labels
+ax5.set_xlabel(' slope ')
+ax5.set_ylabel(' I0 ')
+ax5.set_xscale('log')
+ax5.set_yscale('log')
 
 
 
@@ -716,18 +737,15 @@ Find fractional area for Ssh element
 
 # define function to calculate fractional area for Ssh element
 def fraction_S(sweep):
-    return (np.power(moo3_thickness/results_dict['spacecharges']['St']['I0']['Thickness'], 3)
-    * np.power(results_dict['spacecharges']['Ssh']['I0'][sweep]
-             /results_dict['spacecharges']['St']['I0'][sweep], 2))
+    return (np.power(moo3_thickness
+                     / results_dict['spacecharges']['St']['I0']['Thickness'], 3)
+            * np.power(results_dict['spacecharges']['Ssh']['I0'][sweep]
+                       / results_dict['spacecharges']['St']['I0'][sweep], 2))
 
 # find fraction for Ssh element
 St_df['S fraction'] = fraction_S('ave')
 St_df['S fraction up'] = fraction_S('up')
 St_df['S fraction down'] = fraction_S('down')
-
-# function for MH power term
-def power_term(l):
-    return np.power((l + 1) / l, l) * np.power((l + 1) / (2*l + 1), l + 1)
 
 # define function to calculate fractional area for T elements
 '''def fraction_T(sweep, thickness_C60, Io_Tt, power_Tt, Io_Tsh, power_Tsh, Nt):
@@ -743,6 +761,32 @@ def power_term(l):
                 power_term(lt) *
                 np.power(q * Nt / epsilon0 / epsilon_C60, lsh - lt))'''
 
+# Use Mark-Helfrich to define function for T element area fractions
+def fraction_T(sweep):
+
+        def power_term(l):
+             return (np.power((l + 1) / l, l) 
+                     * np.power((l + 1) / (2*l + 1), l + 1))
+
+        lsh = results_dict['transports']['Tsh']['Power'][sweep] -1
+        I0_Tsh = results_dict['transports']['Tsh']['I0'][sweep]
+        lt = results_dict['transports']['Tt']['Power'][sweep]-1
+        I0_Tt = results_dict['transports']['Tsh']['I0'][sweep]
+
+        c60_thickness = results_dict['transports']['Tsh']['I0']['Thickness']
+
+        return (np.power(moo3_thickness * 1e-9, 2*lsh + 1) / 
+                np.power(c60_thickness  * 1e-9, 2*lt + 1) *
+                np.power(I0_Tsh, lsh + 1) / 
+                np.power(I0_Tt, lt + 1) *
+                power_term(lsh) / 
+                power_term(lt) *
+                np.power(q * Nt_Tt / epsilon0 / epsilon_C60, lsh - lt))
+
+# find fraction for Tsh element
+Tt_df['T fraction'] = fraction_T('ave')
+Tt_df['T fraction up'] = fraction_T('up')
+Tt_df['T fraction down'] = fraction_T('down')
 
 
 
@@ -764,9 +808,9 @@ Tsh_df['mu up'] = mobility(St_df['up'], St_df['Thickness'])
 Tsh_df['mu down'] = mobility(St_df['down'], St_df['Thickness'])
 
 # find slope
-Tsh_df['slope'] = results_dict['transports']['Tt']['Power']['ave']
-Tsh_df['slope up'] = results_dict['transports']['Tt']['Power']['up']
-Tsh_df['slope down'] = results_dict['transports']['Tt']['Power']['down']
+Tsh_df['slope'] = results_dict['transports']['Tsh']['Power']['ave']
+Tsh_df['slope up'] = results_dict['transports']['Tsh']['Power']['up']
+Tsh_df['slope down'] = results_dict['transports']['Tsh']['Power']['down']
 
 # set thickness
 Tsh_df['Thickness'] = moo3_thickness
@@ -802,7 +846,7 @@ Nc_Tsh = Nc_fit_Tsh[0]
 rmse_Nc_Tsh = np.sqrt(np.sum(np.power((Nc_Tsh*Tsh_x_np - Tsh_y_np)/Tsh_y_np, 2)))
 
 # d^-(2l+1) x values for fit line
-xfit_np_Tsh = np.linspace(1e52, 1e98)
+xfit_np_Tsh = np.linspace(1e39, 1e48)
 
 # y values for fit line
 yfit_np_Tsh = Nc_Tsh*xfit_np_Tsh
@@ -941,12 +985,17 @@ Tt_df['Thickness down'] = Tt_df['Thickness']
 
 
 # add S fraction data to plot
-data_to_ax(ax3, St_df, St_df.index[0], 'Thickness', 'S fraction', '#00f2ff', 'o')
-data_to_ax(ax3, St_df, St_df.index[1], 'Thickness', 'S fraction', '#f700ff', 'o')
-data_to_ax(ax3, St_df, St_df.index[2], 'Thickness', 'S fraction', '#f6ff00', 'o')
+data_to_ax(ax3a, St_df, St_df.index[0], 'Thickness', 'S fraction', '#00f2ff', 'o')
+data_to_ax(ax3a, St_df, St_df.index[1], 'Thickness', 'S fraction', '#f700ff', 'o')
+data_to_ax(ax3a, St_df, St_df.index[2], 'Thickness', 'S fraction', '#f6ff00', 'o')
+
+# add T fraction data to plot
+data_to_ax(ax3b, Tt_df, Tt_df.index[0], 'Thickness', 'T fraction', '#00f2ff', 'o')
+data_to_ax(ax3b, Tt_df, Tt_df.index[1], 'Thickness', 'T fraction', '#f700ff', 'o')
+data_to_ax(ax3b, Tt_df, Tt_df.index[2], 'Thickness', 'T fraction', '#f6ff00', 'o')
 
 
-ax3.legend()
+ax3a.legend()
 
 # Save figure
 fig3.savefig(sim_folder + 'Fraction' + plot_file_type )
@@ -961,33 +1010,133 @@ fig3.savefig(sim_folder + 'Fraction' + plot_file_type )
 Plot trap depth
 '''
 
+# Set up/down thicknesses
+Tsh_df['Thickness up'] = Tsh_df['Thickness']
+Tsh_df['Thickness down'] = Tsh_df['Thickness']
 
 # calculate trap depth
-Tt_df['Et'] = (Tt_df['slope']-1) / k / T
-Tt_df['Et up'] = (Tt_df['slope up']-1) / k / T
-Tt_df['Et down'] = (Tt_df['slope down']-1) / k / T
+Tt_df['Et'] = (Tt_df['slope']-1) * k * T
+Tt_df['Et up'] = (Tt_df['slope up']-1) * k * T
+Tt_df['Et down'] = (Tt_df['slope down']-1) * k * T
 
-# add S fraction data to plot
+# calculate trap depth
+Tsh_df['Et'] = (Tsh_df['slope']-1) * k * T
+Tsh_df['Et up'] = (Tsh_df['slope up']-1) * k * T
+Tsh_df['Et down'] = (Tsh_df['slope down']-1) * k * T
+
+# add Et data to plot
 data_to_ax(ax4, Tt_df, Tt_df.index[0], 'Thickness', 'Et', '#00f2ff', 'o')
 data_to_ax(ax4, Tt_df, Tt_df.index[1], 'Thickness', 'Et', '#f700ff', 'o')
 data_to_ax(ax4, Tt_df, Tt_df.index[2], 'Thickness', 'Et', '#f6ff00', 'o')
 
+# add Et data to plot
+data_to_ax(ax4, Tsh_df, Tsh_df.index[0], 'Thickness', 'Et', '#00f2ff', 'o')
+data_to_ax(ax4, Tsh_df, Tsh_df.index[1], 'Thickness', 'Et', '#f700ff', 'o')
+data_to_ax(ax4, Tsh_df, Tsh_df.index[2], 'Thickness', 'Et', '#f6ff00', 'o')
+
 # define exponential functioin
 def exp_func(x, a, b, c):
-    return a * np.exp(-b * x) + c
+    return (a - c) * np.exp(-b * x) + c
 
-print(Tt_df['Thickness'].values)
+print(Tt_df['Et'].values)
 
 # Use curve_fit to find optimized parameters
-popt, pcov = curve_fit(exp_func, Tt_df['Thickness'].values, Tt_df['Et'].values, p0=[0.5, 0.1, 0.05])
+popt, pcov = curve_fit(exp_func, Tt_df['Thickness'].values, Tt_df['Et'].values, p0=(0.2, 0.1, 0.04))
 
-
+print(popt[2])
 
 x_fit_np = np.linspace(0, 100, 50)
 
-ax4.plot(Tt_df['Thickness'], exp_func(Tt_df['Thickness'], popt[0], popt[1], popt[2]))
+ax4.plot(x_fit_np, 
+         exp_func(x_fit_np, popt[0], popt[1], popt[2]),
+         linestyle = '--')
+
 
 ax4.legend()
 
 # Save figure
 fig4.savefig(sim_folder + 'Traps' + plot_file_type )
+
+
+
+
+
+'''
+Calculate I0 for TLC in transport and shunt layers
+'''
+
+# define function for y values
+def I0(slope, thickness, area_fraction, Nt, Nc):
+    
+    l = slope - 1
+    Ncmu_term = q * Nc * mu
+    trap_term = np.power(epsilon0 * epsilon_C60 / q / Nt * l / (l + 1), l)
+    slope_term = np.power((2 * l + 1) / (l + 1), l + 1)
+    thick_term = np.power(thickness, 2*l + 1)
+
+    return np.power(Ncmu_term * trap_term * slope_term / thick_term * area_fraction * Area, 1/(l+1))
+
+# set range for slope plotted on x axis
+slope_np = np.linspace(2, 8, 50)
+
+# transport I0 curve
+I0_t_30nm_np = I0(slope_np, 30e-9, 1, Nt_Tt, Nc_fit_Tt)
+I0_t_40nm_np = I0(slope_np, 40e-9, 1, Nt_Tt, Nc_fit_Tt)
+I0_t_60nm_np = I0(slope_np, 60e-9, 1, Nt_Tt, Nc_fit_Tt)
+
+
+
+
+'''
+Plot I0 versus slope
+'''
+
+
+# Add I0 curves to plot
+ax5.plot(slope_np, 
+        I0_t_30nm_np,
+        linestyle = ':',
+        label = 'transport 30nm',
+        color = 'cyan')
+
+ax5.plot(slope_np, 
+        I0_t_40nm_np,
+        linestyle = ':',
+        label = 'transport 40nm',
+        color = 'magenta')
+
+ax5.plot(slope_np, 
+        I0_t_60nm_np,
+        linestyle = ':',
+        label = 'transport 60nm',
+        color = 'yellow')
+
+ax5.plot(slope_np, 
+        np.power(slope_np, 2.7) * 0.0095,
+        linestyle = '--',
+        label = 'transport 30nm',
+        color = 'white')
+
+
+# find I0
+Tt_df['I0'] = results_dict['transports']['Tt']['I0']['ave']
+Tt_df['I0 up'] = results_dict['transports']['Tt']['I0']['up']
+Tt_df['I0 down'] = results_dict['transports']['Tt']['I0']['down']
+
+# find I0
+Tsh_df['I0'] = results_dict['transports']['Tt']['I0']['ave']
+Tsh_df['I0 up'] = results_dict['transports']['Tt']['I0']['up']
+Tsh_df['I0 down'] = results_dict['transports']['Tt']['I0']['down']
+
+# Add I0 data points
+data_to_ax(ax5, Tt_df, Tt_df.index[0], 'slope', 'I0', '#00f2ff', 'o')
+data_to_ax(ax5, Tt_df, Tt_df.index[1], 'slope', 'I0', '#f700ff', 'o')
+data_to_ax(ax5, Tt_df, Tt_df.index[2], 'slope', 'I0', '#f6ff00', 'o')
+
+# Add I0 data points
+data_to_ax(ax5, Tsh_df, Tsh_df.index[0], 'slope', 'I0', '#00f2ff', 'o')
+data_to_ax(ax5, Tsh_df, Tsh_df.index[1], 'slope', 'I0', '#f700ff', 'o')
+data_to_ax(ax5, Tsh_df, Tsh_df.index[2], 'slope', 'I0', '#f6ff00', 'o')
+
+# Save figure
+fig5.savefig(sim_folder + 'Io' + plot_file_type )

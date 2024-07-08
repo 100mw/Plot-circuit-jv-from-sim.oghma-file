@@ -34,6 +34,29 @@ thickness_MoO3 = 10e-9
 
 
 '''
+Set up I0 vrs l plot
+'''
+
+# black background
+plt.style.use('dark_background')
+
+# plot curves
+fig, ax = plt.subplots(figsize = (5, 7), dpi=200)
+
+#adjust plot margins
+fig.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.2, hspace=0, wspace=0.4)
+
+# Set axes labels
+ax.set_xlabel(' slope ')
+ax.set_ylabel(' I0 ')
+
+
+
+
+
+
+
+'''
 Load all saved circuit results in sim_folder
 '''
  
@@ -143,28 +166,16 @@ I0_t_60nm_np = I0(slope_np, 60e-9, 1, 1, 1)
 
 
 '''
-Find average points and average area fractions, create new devices
+Find average points and average area fractions, create new dictionary
 '''
 
 
 
-'''
-Set up I0 vrs l plot
-'''
 
 
-# black background
-plt.style.use('dark_background')
 
-# plot curves
-fig, ax = plt.subplots(figsize = (5, 7), dpi=200)
 
-#adjust plot margins
-fig.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.2, hspace=0, wspace=0.4)
 
-# Set axes labels
-ax.set_xlabel(' slope ')
-ax.set_ylabel(' I0 ')
 
 
 

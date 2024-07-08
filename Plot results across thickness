@@ -1,0 +1,478 @@
+# Import modules python3.12.2
+
+from pathlib import Path
+import pandas as pd
+import json
+import matplotlib.pyplot as plt
+import numpy as np
+import re
+from collections import defaultdict
+
+model_version = 'Model V19-2' 
+
+    
+
+# Type path to folder here (Mac/Windows/Unix compatible):
+sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/"
+#sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\"
+
+
+
+#plot settings
+black_background = True
+plot_width = 12
+plot_height = 6
+dpi = 120
+
+write_model_version = False
+
+# Device area [m^2]
+Area = 0.00000121	
+
+
+epsilon0 = 8.854e-12
+epsilon_C60 = 2.3
+
+
+
+
+'''
+Set color for each circuit element
+'''
+
+R_colors = ['#fb0000', # Rb
+            '#ff7300', # Rs
+            '#00fb97', # Rt
+            '#fb00ea', # Rbsh
+            '#fbea00', # Rcsh
+            '#b0fb00', # Rc
+            '#00a3fb', # Rsh
+            '#5800fb', # Rshsh
+            ]
+
+power_colors = ['#fb0000', # St
+                '#ff7300', # Tt
+                '#00fb97', # Sc
+                '#fb00ea', # Sb
+                '#fbea00', # I
+                '#00f3fb', # Ssh
+                '#00a3fb', # Tsh
+                ]
+
+
+diode_colors = ['#2d9b02', # Id
+                ]
+
+barrier_colors = ['#d100fb', # Id
+                ]
+
+
+
+
+
+'''
+Load all saved circuit results in sim_folder
+'''
+
+# Convert string to path 
+folder_path = Path(sim_folder)
+
+# Create dictionary for all device data
+data_dict = {}
+
+# find folders ending in 'results'
+for index, folders in enumerate(folder_path.glob('**/*results')):
+
+    # look for 'fit values' file with greatest last digit
+    filename = folders / 'fit values .json'
+    last_digit=1
+    while (new_filename := filename.with_stem(f"{filename.stem}{last_digit}")).exists():
+        last_digit += 1
+
+        # open diction from file
+        with open(new_filename, 'r') as f:
+            file_dict = json.load(f)
+
+    # Search folder name for device parameters
+    folder_name = folders.name
+    match = re.search(r'(..)nm', folder_name)
+    thickness = int(match.group(1))
+    match = re.search(r'd(..)', folder_name)
+    age = int(match.group(1))
+    match = re.search(r'\b(?:up|down)\b', folder_name)
+    sweep = match.group().lower()
+
+    # Add device properties to loaded dictionary
+    file_dict['thickness'] = thickness
+    file_dict['age'] = age
+    file_dict['sweep'] = sweep
+    
+    # Add device to main dictionary 
+    data_dict[str(index)] = file_dict
+
+#print(device_dict)
+
+# Save dictionary to a JSON file
+with open(sim_folder + 'data_dict.json', 'w') as f:
+    json.dump(data_dict, f)
+
+
+
+
+'''
+Set up ploting
+'''
+
+#black background
+
+if black_background == True:
+  plt.style.use('dark_background')							
+
+# Create figure layout
+layout = [
+    ['R' , 'S'  , 'T' , 'Et'],
+    ['R' , 'St' , 'I' , 'Ei'],
+    ['R' , 'Rsh', 'Id', 'n' ],
+    ['Rs', 'Rt' , 'B' , 'b0']
+]
+
+fig = plt.figure(
+                #sharex=False, 
+                figsize=(plot_width, 
+                        plot_height), 
+                #gridspec_kw={'height_ratios':[1,0.5]}, 
+                dpi=dpi)
+
+ax = fig.subplot_mosaic(layout)
+'''
+fig, ((ax['R'],  ax['T'],  ax['I'], ax['Id'], ax['B']), 
+      (ax['S'], ax['Et']
+    , ax['Ei'], ax['n'],  ax['b0'])
+      ) = plt.subplots(2, 5, 
+                    sharex=False, 
+                    figsize=(plot_width, 
+                            plot_height), 
+                    #gridspec_kw={'height_ratios':[1,0.5]}, 
+                    dpi=dpi)
+'''
+                    
+
+#adjust plot margins
+fig.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.05, hspace=0, wspace=0.4)
+
+# Set title
+i=1
+fig.canvas.manager.set_window_title(folder_path.name + " " + str(i)) 
+
+# Set axes y labels
+ax['R'].set_ylabel("R")
+ax['Rs'].set_ylabel("Rs")
+ax['Rt'].set_ylabel("Rt")
+ax['Rsh'].set_ylabel("Rsh")
+ax['S'].set_ylabel("S")
+ax['St'].set_ylabel("St")
+ax['T'].set_ylabel("T")
+ax['Et'].set_ylabel("Et")
+ax['I'].set_ylabel("I")
+ax['Ei'].set_ylabel("Ei")
+ax['Id'].set_ylabel("Id")
+ax['n'].set_ylabel("n")
+ax['B'].set_ylabel("B")
+ax['b0'].set_ylabel("b0")
+
+# Set axes labels
+ax['S'].set_xlabel("Thickness [nm]")
+
+# Set log scale
+ax['R'].set_yscale("log")
+ax['S'].set_yscale("log")
+
+
+
+if write_model_version == True:
+  
+  #text box for model version
+  ax['R'].text(0.98, 0.025, model_version, transform=ax['R'].transAxes, ha='right')		
+
+
+
+
+
+'''
+Add Resistance data to plot and build dataframe
+'''
+
+# dictionary for dataframe of sweeps
+results_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(dict))))
+
+# add data to R plot
+for name in data_dict:
+    for i, resistor in enumerate(data_dict[name]['resistors']['R [Ohms]']):
+
+        thickness = data_dict[name]['thickness']
+
+        # store thicknesss in results dataframe
+        results_dict['resistors'][resistor]['properties']['thickness'] = thickness
+
+        if data_dict[name]['sweep'] == 'up':
+
+            #get values for sweep
+            value = data_dict[name]['resistors']['R [Ohms]'][resistor]
+            
+            # add data point to plot
+            ax['R'].plot(thickness, 
+                      value,
+                      marker = '^',
+                      color = R_colors[i])
+            
+            if resistor == 'Rs':
+                ax['Rs'].plot(thickness, 
+                      value,
+                      marker = '^',
+                      color = R_colors[i])
+                
+            elif resistor == 'Rbsh' or resistor == "Rcsh" or resistor == 'Rshsh':
+                ax['Rsh'].plot(thickness, 
+                      value,
+                      marker = '^',
+                      color = R_colors[i])
+                
+            elif resistor == 'Rt':
+                ax['Rt'].plot(thickness, 
+                      value,
+                      marker = '^',
+                      color = R_colors[i])
+            
+            # organize resistor data
+            results_dict['resistors'][resistor]['R']['sweep']['up'] = value
+            
+
+        else:
+            value = data_dict[name]['resistors']['R [Ohms]'][resistor]
+
+            # add data point to plot
+            ax['R'].plot(thickness,
+                      value,
+                      marker = 'v',
+                      color = R_colors[i])
+            
+            if resistor == 'Rs':
+                ax['Rs'].plot(thickness, 
+                      value,
+                      marker = 'v',
+                      color = R_colors[i])
+                
+            elif resistor == 'Rbsh' or resistor == "Rcsh" or resistor == 'Rshsh':
+                ax['Rsh'].plot(thickness, 
+                      value,
+                      marker = 'v',
+                      color = R_colors[i])
+                
+            elif resistor == 'Rt':
+                ax['Rt'].plot(thickness, 
+                      value,
+                      marker = 'v',
+                      color = R_colors[i])
+            
+            # organize resistor data
+            results_dict['resistors'][resistor]['R']['sweep']['down'] = value
+
+
+
+
+
+
+'''
+Function to plot a point in data_dict and add it to results_dict
+'''
+
+def plot_point(dict_entry, 
+               dict_type, 
+               dict_title,
+               plot_title_I0,
+               plot_title_n,
+               point_colors,
+               results_type):
+    
+    if dict_type == 'powers':
+        exponent_type = 'Power'
+    elif dict_type == 'diodes':
+        exponent_type = 'n'
+    else:
+        exponent_type ='b0'
+
+    if data_dict[dict_entry]['sweep'] == 'up':
+        
+        value = data_dict[dict_entry][dict_type]['I0'][dict_title]
+
+        # add data point to plot
+        ax[plot_title_I0].plot(data_dict[dict_entry]['thickness'],
+                    value,
+                    marker = '^',
+                    color = point_colors[i])
+        
+        # organize transports data
+        results_dict[results_type][dict_title]['I0']['sweep']['up'] = value
+
+        
+        value = data_dict[dict_entry][dict_type][exponent_type][dict_title]
+
+        # add data point to plot
+        ax[plot_title_n].plot(data_dict[dict_entry]['thickness'],
+                    value,
+                    marker = '^',
+                    color = point_colors[i])
+        
+        # organize transports data
+        results_dict[results_type][dict_title][exponent_type]['sweep']['up'] = value
+
+    else:
+        
+        value = data_dict[dict_entry][dict_type]['I0'][dict_title]
+
+        # add data point to plot
+        ax[plot_title_I0].plot(data_dict[dict_entry]['thickness'],
+                    value,
+                    marker = 'v',
+                    color = point_colors[i])
+        
+        # organize transports data
+        results_dict[results_type][dict_title]['I0']['sweep']['down'] = value
+
+        value = data_dict[dict_entry][dict_type][exponent_type][dict_title]
+
+        # add data point to plot
+        ax[plot_title_n].plot(data_dict[dict_entry]['thickness'],
+                    value,
+                    marker = 'v',
+                    color = point_colors[i])
+        
+        # organize transports data
+        results_dict[results_type][dict_title][exponent_type]['sweep']['down'] = value
+
+
+
+
+
+'''
+Add power, diode, barrier data to plots and build results dataframe
+'''
+
+# add data to S, T, I plots
+for name in data_dict:
+    for i, powers in enumerate(data_dict[name]['powers']['I0']):
+
+        # select spacecharges elements
+        if data_dict[name]['powers']['Power'][powers] == 2:
+            if data_dict[name]['sweep'] == 'up':
+                value = data_dict[name]['powers']['I0'][powers]
+
+                # add data point to plot
+                ax['S'].plot(data_dict[name]['thickness'],
+                        value,
+                        marker = '^',
+                        color = power_colors[i])
+                
+                if powers == 'St':
+                    ax['St'].plot(data_dict[name]['thickness'],
+                        value,
+                        marker = '^',
+                        color = power_colors[i])
+
+                # organize spacecharge data
+                results_dict['spacecharges'][powers]['I0']['sweep']['up'] = value
+
+            else:
+                value = data_dict[name]['powers']['I0'][powers]
+                ax['S'].plot(data_dict[name]['thickness'],
+                        value,
+                        marker = 'v',
+                        color = power_colors[i])
+                
+                if powers == 'St':
+                    ax['St'].plot(data_dict[name]['thickness'],
+                        value,
+                        marker = 'v',
+                        color = power_colors[i])
+                
+                # organize spacecharge data
+                results_dict['spacecharges'][powers]['I0']['sweep']['down'] = value
+
+        # select transports elements   
+        elif data_dict[name]['powers']['Power'][powers] < 20:
+            plot_point(name, 'powers', powers, 'T', 'Et', power_colors, 'transports')
+
+        # select interfaces elements
+        else:
+            plot_point(name, 'powers', powers, 'I', 'Ei', power_colors, 'interfaces')
+
+# add data diode plots
+for name in data_dict:
+    for i, diodes in enumerate(data_dict[name]['diodes']['I0']):
+        plot_point(name, 'diodes', diodes, 'Id', 'n', diode_colors, 'diodes')
+
+# add data barrier plots
+for name in data_dict:
+    for i, barriers in enumerate(data_dict[name]['barriers']['I0']):
+        plot_point(name, 'barriers', barriers, 'B', 'b0', barrier_colors, 'barriers')
+
+
+
+
+
+
+'''
+Find average of each sweep
+'''
+
+element_type = ['spacecharges', 'transports', 'interfaces', 'diodes', 'barriers']
+
+# create dataframes to store average data
+resistors_df = pd.DataFrame(columns = ['R [Ohms]'])
+spacecharges_df = pd.DataFrame(columns = ['I0', 'Power'])
+transports_df = pd.DataFrame(columns = ['I0', 'Power'])
+interfaces_df = pd.DataFrame(columns = ['I0', 'Power'])
+diodes_df = pd.DataFrame(columns = ['I0', 'n'])
+barriers_df = pd.DataFrame(columns = ['I0', 'b0'])
+
+
+for type in results_dict:
+    for name in results_dict[type]:
+        if type == 'resistors':
+            up = results_dict['resistors'][name]['R']['sweep']['up']
+            down = results_dict['resistors'][name]['R']['sweep']['down']
+            ave = (up + down)/2
+            results_dict['resistors'][name]['R']['sweep']['ave'] = ave
+
+
+        if type == 'spacecharges':
+            up = results_dict[type][name]['I0']['sweep']['up']
+            down = results_dict[type][name]['I0']['sweep']['down']
+            results_dict[type][name]['I0']['sweep']['ave'] = (up + down)/2
+        if type == 'transports' or type == 'interfaces':
+            up = results_dict[type][name]['Power']['sweep']['up']
+            down = results_dict[type][name]['Power']['sweep']['down']
+            results_dict[type][name]['Power']['sweep']['ave'] = (up + down)/2
+        if type == 'diodes':
+            up = results_dict[type][name]['n']['sweep']['up']
+            down = results_dict[type][name]['n']['sweep']['down']
+            results_dict[type][name]['n']['sweep']['ave'] = (up + down)/2
+        if type == 'barriers':
+            up = results_dict[type][name]['b0']['sweep']['up']
+            down = results_dict[type][name]['b0']['sweep']['down']
+            results_dict[type][name]['b0']['sweep']['ave'] = (up + down)/2
+
+# Save dictionary to a JSON file
+with open(sim_folder + 'results.json', 'w') as f:
+    json.dump(results_dict, f)
+
+
+
+
+
+'''
+Create numpy of averages values in results dictionary
+'''
+
+
+plt.savefig(sim_folder + 'plot.pdf')
