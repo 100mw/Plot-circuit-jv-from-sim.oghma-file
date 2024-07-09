@@ -14,7 +14,7 @@ model_version = 'Model V21-3'
 sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3"
 
 # select device from dictionary
-device = 3
+device = 1
 
 device_dict = {1 : 'c60 30nm d10 up',
                2 : 'c60 30nm d10 down',
@@ -44,8 +44,8 @@ elements = {
   'Sc':    {'color': '#fdfd04', 'linewidth': 1, 'linestyle': ':',  'label': 'Contact SCLC'},
   'St':    {'color': '#ff0000', 'linewidth': 1, 'linestyle': ':',  'label': 'Transport SCLC'},
   'Tt':    {'color': '#ff0000', 'linewidth': 1, 'linestyle': '--', 'label': 'Transport TLC'},
-  'I':     {'color': '#ff8400', 'linewidth': 1, 'linestyle': ':',  'label': 'Interface ILC'},
-  'Id':    {'color': '#ff8400', 'linewidth': 1, 'linestyle': '--', 'label': 'Interface diode'}, 
+  'Ii':     {'color': '#ff8400', 'linewidth': 1, 'linestyle': ':',  'label': 'Interface ILC'},
+  'Di':    {'color': '#ff8400', 'linewidth': 1, 'linestyle': '--', 'label': 'Interface diode'}, 
   'Rsh':   {'color': '#91ff00', 'linewidth': 1, 'linestyle': '-',  'label': 'Shunt leg'},
   'Ssh':   {'color': '#437601', 'linewidth': 1, 'linestyle': ':',  'label': 'Shunt SCLC'},
   'Tsh':   {'color': '#437601', 'linewidth': 1, 'linestyle': '--', 'label': 'Shunt TLC'},
@@ -229,6 +229,8 @@ for i, column in enumerate(data_df.columns):
 	data_df = data_df.rename(columns={column: titles[i]})
 
 pd.set_option('display.max_columns', None)
+
+# to see a list of uid and element titles, print data_df
 #print(data_df)
 
 
