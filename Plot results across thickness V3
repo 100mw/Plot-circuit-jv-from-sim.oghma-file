@@ -9,13 +9,13 @@ import re
 from collections import defaultdict
 from scipy.optimize import curve_fit
 
-model_version = 'Model V21-3' 
+model_version = 'Model V21-4' 
 
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder = "/Users/alexiarango/Library/CloudStorage/OneDrive-Personal/Documents/Oghma/Circuit/v21-3/"
-sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3\\"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-4\\"
 
 # save as .pdf or .png?
 plot_file_type = '.pdf'
@@ -33,8 +33,8 @@ Area = 0.00000121
 
 # Device parameters
 epsilon_C60 = 2.3
-Nt_Tt = 7e23
-Nt_Tsh = 8e23
+Nt_Tt = 5e23
+Nt_Tsh = 5e23
 
 # constants
 epsilon0 = 8.854e-12
@@ -45,7 +45,7 @@ T = 300
 # thickness of MoO3 in nm
 moo3_thickness = 10
 
-mu_target = 4.3e-8
+mu_target = 3.3e-8
 
 
 '''
@@ -315,12 +315,12 @@ fig5, (ax5a, ax5b) = plt.subplots(1, 2, figsize = (plot_width, plot_height), sha
 fig5.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.2, hspace=0, wspace=0.4)
 
 # Set axes labels
-ax5a.set_xlabel(' slope ')
-ax5a.set_ylabel(' I0 ')
+ax5a.set_xlabel('Tt slope ')
+ax5a.set_ylabel('Tt I0 ')
 ax5a.set_xscale('log')
 ax5a.set_yscale('log')
-ax5b.set_xlabel(' slope ')
-ax5b.set_ylabel(' I0 ')
+ax5b.set_xlabel('Tsh slope ')
+ax5b.set_ylabel('Tsh I0 ')
 ax5b.set_xscale('log')
 
 
@@ -652,20 +652,20 @@ Solve for Nc for Tt
 
 # define functin for mobility
 def mobility(I0, thickness):
-    return 8/9 / epsilon0 / epsilon_C60 * np.power(thickness.astype(float) * 1e-9, 3) * np.power(I0, 2) / Area
+    return 8/9 / epsilon0 / epsilon_C60 * np.power(thickness.values * 1e-9, 3) * np.power(I0, 2) / Area
 
 # define function for y values
 def y_values(I0, slope, mobility, traps, fraction):
-    l = slope - 1
+    l = slope.values - 1
     current_term = np.power(I0, l + 1)
     trap_term = np.power(q * traps / epsilon0 / epsilon_C60 * (l + 1) / l, l)
     slope_term = np.power((l + 1) / (2 * l + 1), l + 1)
-    return current_term / fraction / Area / q / mobility * trap_term * slope_term
+    return current_term / fraction / Area / q / mobility.values * trap_term * slope_term
 
 # define function for x values
 def x_values(thickness, slope):
     l = slope - 1
-    return np.power(thickness.astype(float) * 1e-9, -(2 * l + 1))
+    return np.power(thickness.values * 1e-9, -(2 * l + 1))
 
 # get df for St
 St_df = results_dict['spacecharges']['St']['I0']
@@ -852,19 +852,6 @@ print()
 
 
 
-'''
-Calculate geometric mean of Nt and Nc
-
-
-Nt_mean = np.power (Nt_Tt * Nt_Tsh, 0.5)
-Nc_mean = np.power (Nc_Tt * Nc_Tsh, 0.5)
-'''
-
-
-
-
-
-
 
 '''
 function to add up/down/ave data point to plot with same color
@@ -964,8 +951,6 @@ fig2.savefig(sim_folder + 'Tt' + plot_file_type )
 '''
 Plot area fraction
 '''
-
-
 
 # Set up/down thicknesses
 St_df['Thickness up'] = St_df['Thickness']
@@ -1108,7 +1093,7 @@ ax5a.plot(slope_np,
 
 # draw fit line
 ax5a.plot(slope_np, 
-        np.power(slope_np, 2.7) * 0.0095,
+        np.power(slope_np, 2.5) * 0.0115,
         linestyle = '--',
         label = 'transport 30nm',
         color = 'white')
@@ -1136,7 +1121,7 @@ ax5b.plot(slope_np,
 
 # draw fit line
 ax5b.plot(slope_np, 
-        np.power(slope_np, 2.7) * 0.0095,
+        np.power(slope_np, 2.5) * 0.015,
         linestyle = '--',
         label = 'transport 30nm',
         color = 'white')
