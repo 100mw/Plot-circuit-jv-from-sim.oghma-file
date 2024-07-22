@@ -14,16 +14,16 @@ sim_folder_directory = "/Users/alexiarango/Library/CloudStorage/OneDrive-Persona
 #sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3"
 
 # select device from dictionary
-device = 1
+device = 6
 
 device_dict = {1 : '30nm_d10_up',
-               2 : 'c60 30nm d10 down',
-               3 : 'c60 40nm d14 up',
-               4 : 'c60 40nm d14 down',
-               7 : 'c60 56nm d10 up',
-               8 : 'c60 56nm d10 down',
-               5 : 'c60 60nm d14 up',
-               6 : 'c60 60nm d14 down',
+               2 : '30nm_d10_down',
+               3 : '40nm_d14_up',
+               4 : '40nm_d14_down',
+               7 : '56nm_d10_up',
+               8 : '56nm_d10_down',
+               5 : '60nm_d14_up',
+               6 : '60nm_d14_down',
                9 : 'pause\\v19-4 c60 30nm d23 pause up'
                }
  
