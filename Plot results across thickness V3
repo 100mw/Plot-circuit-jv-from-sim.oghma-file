@@ -9,13 +9,13 @@ import re
 from collections import defaultdict
 from scipy.optimize import curve_fit
 
-model_version = 'Model V21-4' 
+model_version = 'Model V21-6' 
 
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder = "/Users/alexiarango/Library/CloudStorage/OneDrive-Personal/Documents/Oghma/Circuit/v21-4/"
-sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-5\\"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-6\\"
 
 # save as .pdf or .png?
 plot_file_type = '.pdf'
@@ -33,8 +33,8 @@ Area = 0.00000121
 
 # Device parameters
 epsilon_C60 = 2.3
-Nt_Tt = 8e23
-Nt_Tsh = 8e23
+Nt_Tt = 5e23
+Nt_Tsh = 7e23
 
 # constants
 epsilon0 = 8.854e-12
@@ -46,11 +46,11 @@ T = 300
 moo3_thickness = 10
 
 # mobility
-mu1_target = 2.0e-8
-mu2_target = 1.0e-8
+mu1_target = 1.0e-8
+mu2_target = 1.5e-8
 
 # b0 thickness proportion
-alpha = 0.26
+alpha = 0.29
 
 # set colors by index (corresponds to thickness)
 point_color = {0: '#00f2ff',
@@ -59,9 +59,9 @@ point_color = {0: '#00f2ff',
                3: '#1eff00'
                }
 
-
-
-
+# set limits for d^-(2l+1) x values for fit line in Mark-Helfrich plots
+xfit_np_Tt = np.linspace(1e50, 1e63)
+xfit_np_Tsh = np.linspace(1e45, 1e55)
 
 
 '''
@@ -357,11 +357,11 @@ if plot_all_parameters == True:
 
     # Create figure layout
     layout = [
-        ['Rsh_all'    , 'R'      , 'S'   , 'T'       , 'Et'  ],
-        ['Rt'    , 'Rs'      , 'St'  , 'Ii'       , 'Ei'  ],
-        ['Rcsh'    , 'Rc'    , 'Sc'  , 'Di'      , 'nd'  ],
-        ['Rshsh'  , 'Rsh'   , 'Tsh' , 'Dsh'    , 'ndsh'],
-        ['Rbsh'  , 'Rb'    , 'Sb'  , 'Bb'       , 'b0'  ]
+        ['Rsh_all' , 'R'   , 'S'   , 'T'   , 'Et'  ],
+        ['Rt'      , 'Rs'  , 'St'  , 'Ii'  , 'Ei'  ],
+        ['Rcsh'    , 'Rc'  , 'Sc'  , 'Di'  , 'nd'  ],
+        ['Rshsh'   , 'Rsh' , 'Tsh' , 'Dsh' , 'ndsh'],
+        ['Rbsh'    , 'Rb'  , 'Sb'  , 'Bb'  , 'b0'  ]
     ]
 
     fig = plt.figure(figsize=(plot_width, plot_height), dpi=dpi)
@@ -392,7 +392,7 @@ if plot_all_parameters == True:
     ax['R'].set_yscale("log")
     ax['S'].set_yscale("log")
     ax['Rsh_all'].set_yscale('log')
-    #ax['Di'].set_yscale('log')
+    ax['Di'].set_yscale('log')
     ax['Dsh'].set_yscale('log')
     ax['Rt'].set_yscale('log')
 
@@ -562,7 +562,7 @@ if plot_St == True:
     # d^-3 x values for fit
     xfit_np = np.linspace(-1e20, 4e22)
 
-    # Jo_sc values for fit
+    # Jo_sc line for fit
     yfit_np = Jo_sc_fit[0][0]*xfit_np + Jo_sc_fit[0][1]
 
     # calculate mobilty
@@ -596,7 +596,7 @@ if plot_St == True:
             color = 'white')
 
     # draw mobility target line
-    x_np = np.linspace(0,4e22,10)
+    x_np = np.linspace(0, 4e22, 10)
     Jo1_np = 9/8*epsilon0*epsilon_C60*mu1_target*x_np
     Jo2_np = 9/8*epsilon0*epsilon_C60*mu2_target*x_np
 
@@ -623,7 +623,7 @@ if plot_St == True:
 
 
 '''
-Plot Mark-Helfrich portion versus d^-3(2l+1)
+Plot Mark-Helfrich versus d^-3(2l+1)
 '''
 plot_Tt = True
 if plot_Tt == True:
@@ -745,11 +745,13 @@ if plot_Tt == True:
     # error
     #err_Nc_Tt = pcov[0][0]
 
-    # d^-(2l+1) x values for fit line
-    xfit_np_Tt = np.linspace(1e45, 1e54)
+
 
     # y values for fit line
     yfit_np_Tt = Nc_Tt*xfit_np_Tt
+
+    # calculate guess line
+    Tt_yguess_np = m_guess*Tt_x_np
 
     print('Nc Tt =', Nc_Tt)
     print('error = ', rmse_Nc_Tt)
@@ -841,9 +843,9 @@ if plot_Tt == True:
     Tsh_df['x_values down'] = x_values(Tsh_df['Thickness'], Tsh_df['slope down'])
 
     # caluculate y values
-    Tsh_df['y_values'] = y_values(Tsh_df['ave'], Tsh_df['slope'], Tsh_df['mu'], Nt_Tsh, fraction_S('ave'))
-    Tsh_df['y_values up'] = y_values(Tsh_df['up'], Tsh_df['slope'], Tsh_df['mu up'], Nt_Tsh, fraction_S('up'))
-    Tsh_df['y_values down'] = y_values(Tsh_df['down'], Tsh_df['slope'], Tsh_df['mu down'], Nt_Tsh, fraction_S('down'))
+    Tsh_df['y_values'] = y_values(Tsh_df['ave'], Tsh_df['slope'], Tsh_df['mu'], Nt_Tsh, Tt_df['T fraction'])
+    Tsh_df['y_values up'] = y_values(Tsh_df['up'], Tsh_df['slope'], Tsh_df['mu up'], Nt_Tsh, Tt_df['T fraction up'])
+    Tsh_df['y_values down'] = y_values(Tsh_df['down'], Tsh_df['slope'], Tsh_df['mu down'], Nt_Tsh, Tt_df['T fraction down'])
 
     # Nc fit
     m_guess = 5e25
@@ -873,11 +875,11 @@ if plot_Tt == True:
     # fit error
     rmse_Nc_Tsh = np.sqrt(np.sum(np.power((np.log(Nc_Tsh) + Tsh_x_np_log - Tsh_y_np_log)/Tsh_y_np_log, 2)))
 
-    # d^-(2l+1) x values for fit line
-    xfit_np_Tsh = np.linspace(1e42, 1e51)
+    
 
     # y values for fit line
     yfit_np_Tsh = Nc_Tsh*xfit_np_Tsh
+
 
     print('Nc Tsh =', Nc_Tsh)
     print('error = ', rmse_Nc_Tsh)
@@ -908,6 +910,13 @@ if plot_Tt == True:
             linewidth = 1,
             linestyle = '--',
             color = 'white')
+    
+    # plot Nc guess line
+    ax2a.plot(Tt_x_np, 
+            Tt_yguess_np,
+            linewidth = 1,
+            linestyle = '-',
+            color = 'gray')
 
     # add Tsh data to plot
     for i in range(len(Tsh_df)):
@@ -974,8 +983,9 @@ if plot_area == True:
     ax3a.set_ylabel("Shunt area fraction")
     ax3b.set_ylabel("Transport area fraction")
 
-
-
+    # set log scale
+    ax3a.set_yscale('log')
+    ax3b.set_yscale('log')
 
 
 
@@ -1108,7 +1118,7 @@ if plot_I0 == True:
     '''
 
     # plot curves
-    fig5, (ax5a, ax5b) = plt.subplots(1, 2, figsize = (plot_width, plot_height), sharey = True, dpi=dpi)
+    fig5, (ax5a, ax5b) = plt.subplots(1, 2, figsize = (plot_width, plot_height), sharey = False, dpi=dpi)
 
 
     #adjust plot margins
@@ -1150,7 +1160,7 @@ if plot_I0 == True:
     I0_sh_list = []
 
     # set range for slope plotted on x axis
-    slope_Tt_np = np.linspace(3.7, 5.2, 50)
+    slope_Tt_np = np.linspace(3.5, 5.5, 50)
 
     # generate transport I0 curves
     for i, row in Tt_df.iterrows():
@@ -1165,11 +1175,11 @@ if plot_I0 == True:
     I0_sh_60nm_np = I0(slope_np, 10, Tt_df.loc[Tt_df['Thickness'] == 60, 'T fraction'].values , Nt_Tsh, Nc_fit_Tsh)'''
 
     # set range for slope plotted on x axis
-    slope_Tsh_np = np.linspace(3, 4.5, 50)
+    slope_Tsh_np = np.linspace(2.5, 4, 50)
 
     # generate shunt I0 curves
     for i, row in Tt_df.iterrows():
-        I0_sh_list.append(I0(slope_Tsh_np, moo3_thickness , Tt_df.loc[i, 'T fraction'], Nt_Tsh, Nc_Tsh))
+        I0_sh_list.append(I0(slope_Tsh_np, moo3_thickness , Tt_df.loc[i, 'T fraction'], Nt_Tsh, Nc_Tsh)/Tt_df.loc[i, 'T fraction'])
 
 
 
@@ -1210,13 +1220,18 @@ if plot_I0 == True:
     Tsh_df['I0 up'] = results_dict['transports']['Tsh']['I0']['up']
     Tsh_df['I0 down'] = results_dict['transports']['Tsh']['I0']['down']
 
+    # find I0/shunt fraction
+    Tsh_df['I0/T fraction'] = Tsh_df['I0'] / Tt_df['T fraction']
+    Tsh_df['I0/T fraction up'] = Tsh_df['I0 up'] / Tt_df['T fraction up']
+    Tsh_df['I0/T fraction down'] = Tsh_df['I0 down'] / Tt_df['T fraction down']
+
     # Add I0 data points
     for i in range(len(Tt_df)):
         data_to_ax(ax5a, Tt_df, Tt_df.index[i], 'slope', 'I0', point_color[i], 'o')
 
     # Add I0 data points
     for i in range(len(Tsh_df)):
-        data_to_ax(ax5b, Tsh_df, Tsh_df.index[i], 'slope', 'I0', point_color[i], 'o')
+        data_to_ax(ax5b, Tsh_df, Tsh_df.index[i], 'slope', 'I0/T fraction', point_color[i], 'o')
 
     ax5a.legend()
 
@@ -1292,3 +1307,212 @@ if plot_b0 == True:
 
     # Save figure
     fig6.savefig(sim_folder + 'bo' + plot_file_type )
+
+
+
+
+
+'''
+Plot Rs, versus shunted area fraction
+'''
+plot_shunt = True
+if plot_shunt == True:
+
+
+
+    '''
+    Set up plot
+    '''
+
+    # Create figure layout
+    layout = [
+        ['Rsh' , 'Rb' , 'Di'  , 'Ii'  ],
+        ['Tsh' , 'Sb' , 'nd'  , 'Ei'  ],
+        ['Esh' , 'Bb' , 'Dsh'  , 'Ei'  ]
+    ]
+
+    fig7 = plt.figure(figsize=(plot_width, plot_height), dpi=dpi)
+
+    ax7 = fig7.subplot_mosaic(layout)
+
+    #adjust plot margins
+    fig7.subplots_adjust(top=0.995, right=0.99, bottom=0.12, left=0.05, hspace=0, wspace=0.4)
+
+    # Set title
+    i=1
+    fig7.canvas.manager.set_window_title(folder_path.name + " " + str(i)) 
+
+    # Set axes y labels
+    for row in layout:
+        for item in row:
+            ax7[item].set_ylabel(item)
+
+
+    # Set axes labels
+    ax7['Esh'].set_xlabel("Shunt area")
+    ax7['Bb'].set_xlabel("Shunt area")
+    ax7['nd'].set_xlabel("Shunt area")
+    ax7['Ei'].set_xlabel("Shunt area")
+
+    # Set x axes to log scale
+    for row in layout:
+        for item in row:
+            ax7[item].set_xscale('log')
+
+    # Set log scale
+    ax7['Di'].set_yscale("log")
+    ax7['Dsh'].set_yscale("log")
+
+
+
+
+
+    '''
+    Define function to add up/down/ave points to shunt plot
+    '''
+
+    def add_to_shuntplot(plot_name, element_type, element_title, element_para):
+
+        #get df for element
+        df = results_dict[element_type][element_title][element_para]
+
+        for i in range(len(Tt_df)):
+
+            # add data point to plot
+            ax7[plot_name].plot(Tt_df.loc[i, 'T fraction up'], 
+                        df.loc[i,'up'],
+                        marker = '^',
+                        markersize = 4,
+                        linewidth = 0,
+                        color = point_color[i])
+            
+            ax7[plot_name].plot(Tt_df.loc[i, 'T fraction down'], 
+                        df.loc[i, 'down'],
+                        marker = 'v',
+                        markersize = 4,
+                        linewidth = 0,
+                        color = point_color[i])
+            
+            ax7[plot_name].plot(Tt_df.loc[i, 'T fraction'], 
+                        df.loc[i, 'ave'],
+                        marker = 'o',
+                        markersize = 4,
+                        linewidth = 0,
+                        color = point_color[i])
+        
+
+
+    
+    '''
+    Find trendlines
+    '''
+    
+    # x values for shunt area fraction
+    xfit_np_shunt = np.linspace(Tt_df['T fraction'].min(),
+                                Tt_df['T fraction'].max(),
+                                50)
+
+    # get Rsh df
+    df = results_dict['resistors']['Rsh']['R [Ohms]']
+
+    # fit Rsh
+    Rsh_fit = curve_fit(linear_function, 
+                        Tt_df['T fraction'],
+                        pd.to_numeric(df['ave']),
+                        p0=[1, 0],
+                        method='lm')
+    
+    # Rsh fit line
+    Rsh_fit_np = Rsh_fit[0][0]*xfit_np_shunt + Rsh_fit[0][1]
+
+
+    # get Tsh df
+    df = results_dict['transports']['Tsh']['I0']
+
+    # fit Rsh
+    Tsh_fit = curve_fit(linear_function, 
+                        Tt_df['T fraction'],
+                        pd.to_numeric(df['ave']),
+                        p0=[1, 0],
+                        method='lm')
+    
+    # Tsh fit line
+    Tsh_fit_np = Tsh_fit[0][0]*xfit_np_shunt + Tsh_fit[0][1]
+
+
+    # get Esh df
+    df = results_dict['transports']['Tsh']['Power']
+
+    # fit Rsh
+    Esh_fit = curve_fit(linear_function, 
+                        Tt_df['T fraction'],
+                        pd.to_numeric(df['ave']),
+                        p0=[1, 0],
+                        method='lm')
+    
+    # Esh fit line
+    Esh_fit_np = Esh_fit[0][0]*xfit_np_shunt + Esh_fit[0][1]
+
+
+    # get Dsh df
+    df = results_dict['diodes']['Dsh']['I0']
+
+    # fit Rsh
+    Dsh_fit = curve_fit(linear_function, 
+                        Tt_df['T fraction'],
+                        pd.to_numeric(df['ave']),
+                        p0=[1, 0],
+                        method='lm')
+    
+    # Esh fit line
+    Dsh_fit_np = Dsh_fit[0][0]*xfit_np_shunt + Dsh_fit[0][1]
+    
+    
+    '''
+    Add data to plot
+    '''
+
+    # data
+    add_to_shuntplot('Rsh', 'resistors', 'Rsh', 'R [Ohms]')
+    add_to_shuntplot('Tsh', 'transports', 'Tsh', 'I0')
+    add_to_shuntplot('Esh', 'transports', 'Tsh', 'Power')
+    add_to_shuntplot('Rb', 'resistors', 'Rb', 'R [Ohms]')
+    add_to_shuntplot('Sb', 'spacecharges', 'Sb', 'I0')
+    add_to_shuntplot('Bb', 'barriers', 'Bb', 'I0')
+    add_to_shuntplot('Di', 'diodes', 'Di', 'I0')
+    add_to_shuntplot('nd', 'diodes', 'Di', 'n')
+    add_to_shuntplot('Dsh', 'diodes', 'Dsh', 'I0')
+    add_to_shuntplot('Ii', 'interfaces', 'Ii', 'I0')
+    add_to_shuntplot('Ei', 'interfaces', 'Ii', 'Power')
+
+    # fits
+    ax7['Rsh'].plot(xfit_np_shunt,
+                    Rsh_fit_np,
+                    linewidth = 1,
+                    linestyle = '--',
+                    color = 'white'
+                    )
+    
+    ax7['Tsh'].plot(xfit_np_shunt,
+                    Tsh_fit_np,
+                    linewidth = 1,
+                    linestyle = '--',
+                    color = 'white'
+                    )
+    
+    ax7['Esh'].plot(xfit_np_shunt,
+                    Esh_fit_np,
+                    linewidth = 1,
+                    linestyle = '--',
+                    color = 'white'
+                    )
+    
+    ax7['Dsh'].plot(xfit_np_shunt,
+                    Dsh_fit_np,
+                    linewidth = 1,
+                    linestyle = '--',
+                    color = 'white'
+                    )
+
+    # Save figure
+    fig7.savefig(sim_folder + 'Shunt' + plot_file_type)

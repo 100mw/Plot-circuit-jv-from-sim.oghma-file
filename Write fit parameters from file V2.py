@@ -4,16 +4,16 @@ from pathlib import Path
 import pandas as pd
 import json
 import numpy as np
-import subprocess
+import subprocess 
 
-model_version = 'Model V21-4' 
+model_version = 'Model V21-7' 
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder_directory = "/Users/alexiarango/Library/CloudStorage/OneDrive-Personal/Documents/Oghma/Circuit/v21-4"
-sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-4"
+sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-7"
 
 # select device from dictionary
-device = 6
+device = 1
 
 device_dict = {1 : '30nm_d10_up',
                2 : '30nm_d10_down',

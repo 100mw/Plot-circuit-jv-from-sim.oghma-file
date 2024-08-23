@@ -5,20 +5,20 @@ import numpy as np
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/"
-sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\v21-1"
+sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-6"
 
-device = 5
+device = 8
 # select device from dictionary
 
-device_dict = {1 : 'c60 30nm d10 up',
-               2 : 'c60 30nm d10 down',
-               3 : 'c60 40nm d14 up',
-               4 : 'c60 40nm d14 down',
-               5 : 'c60 60nm d14 up',
-               6 : 'c60 60nm d14 down',
-               9 : 'pause\\v19-4 c60 30nm d23 pause up',
-               7 : 'c60 56nm d10 up',
-               8 : 'c60 56nm d10 down'
+device_dict = {1 : '30nm_d10_up',
+               2 : '30nm_d10_down',
+               3 : '40nm_d14_up',
+               4 : '40nm_d14_down',
+               7 : '56nm_d10_up',
+               8 : '56nm_d10_down',
+               5 : '60nm_d14_up',
+               6 : '60nm_d14_down',
+               9 : 'pause\\v19-4 c60 30nm d23 pause up'
                }
 
 
@@ -55,6 +55,8 @@ slope_exp_df = pd.read_csv(sim_subfolder / 'slope_exp.dat',
 
 slope_sim_df = pd.read_csv(sim_subfolder / 'slope_sim.dat',
                 sep=" ", skiprows=0, header=None)
+
+
 
 
 

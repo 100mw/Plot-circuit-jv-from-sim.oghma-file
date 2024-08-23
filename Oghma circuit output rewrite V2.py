@@ -7,14 +7,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import re
 
-model_version = 'Model V21-4' 
+model_version = 'Model V21-7'  
 
 # Type path to folder here (Mac/Windows/Unix compatible):
-sim_folder_directory = "/Users/alexiarango/Library/CloudStorage/OneDrive-Personal/Documents/Oghma/Circuit/v21-4"
-#sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3"
+#sim_folder_directory = "/Users/alexiarango/Library/CloudStorage/OneDrive-Personal/Documents/Oghma/Circuit/v21-4"
+sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-7"
 
 # select device from dictionary
-device = 6
+device = 2
 
 device_dict = {1 : '30nm_d10_up',
                2 : '30nm_d10_down',
@@ -28,7 +28,7 @@ device_dict = {1 : '30nm_d10_up',
                }
  
 # save as .pdf or .png?
-plot_file_type = '.png'
+plot_file_type = '.pdf'
 
 
 '''
@@ -542,7 +542,7 @@ if plot_slopes == True:
 
 
 '''
-Set axis limits and show plot
+Set axis limits
 '''
 # region
 
@@ -568,11 +568,10 @@ if plot_slopes == True:
   )
 
 
-
 axs0.legend()
 
-plt.show(block=False)
-input('Press Enter to close plot and save...\n')
+
+#input('Press Enter to close plot and save...\n')
 
 # endregion
 
@@ -617,13 +616,16 @@ if calculate_mobility == True:
 # endregion
 
 
-
 '''
-Save circuit element parameters to results folder
+Save parameters as dictionary and txt file, circuit legs
 '''
-
 if save == True:
-   
+  
+
+  '''
+  Save circuit element parameters as dictionary to results folder
+  '''
+
   # convert each dataframe to a dictionary
   resistors_dict = resistors_df.to_dict()
   powers_dict = powers_df.to_dict()
@@ -666,6 +668,29 @@ if save == True:
 
 
 
+  '''
+  Save circuit element parameters as csv to results folder
+  '''
+
+  # add empty row at the end of each dataframe
+  resistors_df.loc[len(resistors_df.index)] = None
+  powers_df.loc[len(powers_df.index)] = None
+  diodes_df.loc[len(diodes_df.index)] = None
+  barriers_df.loc[len(barriers_df.index)] = None
+
+  # concatenate dataframes
+  save_df = pd.concat([resistors_df, 
+                       powers_df, 
+                       diodes_df,
+                       barriers_df])
+
+  # create filename
+  filename = Path(resultsfolder_path) / (device_dict[device] + '.txt')
+
+  # save dataframe as csv
+  save_df.to_csv(filename, sep='\t', index=True)
+
+
 
 
   '''
@@ -689,3 +714,4 @@ if save == True:
   # save to results folder
   circuit_legs_df.to_csv(filename, sep='\t', index=False)
 
+plt.show()
