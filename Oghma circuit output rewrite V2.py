@@ -7,14 +7,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import re
 
-model_version = 'Model V21-7'  
+model_version = 'Model V21-9'  
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder_directory = "/Users/alexiarango/Library/CloudStorage/OneDrive-Personal/Documents/Oghma/Circuit/v21-4"
-sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-7"
+sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-9"
 
 # select device from dictionary
-device = 2
+device = 4
 
 device_dict = {1 : '30nm_d10_up',
                2 : '30nm_d10_down',
@@ -193,6 +193,7 @@ for x in range(len(folders)):
 
 # drop extra segments column
 data_df = data_df.drop(columns=['segments'])
+#data_df = data_df.drop(columns=['icons'])
 
 # endregion
 
@@ -293,6 +294,7 @@ Determine fit min/max values and add to element dataframes
 # grab 'fit' dictionary from sim.json
 fit_dict = sim['fits']['vars']
 del fit_dict['segments']
+del fit_dict['icon_']
 
 # add min max columns to element dataframes
 resistors_df['Rmin'] = np.nan
