@@ -6,14 +6,14 @@ import json
 import numpy as np
 import subprocess 
 
-model_version = 'Model V21-7' 
+model_version = 'Model V21-9' 
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder_directory = "/Users/alexiarango/Library/CloudStorage/OneDrive-Personal/Documents/Oghma/Circuit/v21-4"
-sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-7"
+sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\demo"
 
 # select device from dictionary
-device = 1
+device = 7
 
 device_dict = {1 : '30nm_d10_up',
                2 : '30nm_d10_down',

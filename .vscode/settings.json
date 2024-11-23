@@ -1,0 +1,7 @@
+{
+    "workbench.colorCustomizations": {
+    "editor.background": "#000000"
+},
+"python.REPL.enableREPLSmartSend": false
+
+}

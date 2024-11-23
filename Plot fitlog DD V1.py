@@ -5,25 +5,22 @@ import numpy as np
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/"
-sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\demo"
+sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\DD\\v21-1"
 
-device = 7
+device = 2
 # select device from dictionary
 
-device_dict = {1 : '30nm_d10_up',
-               2 : '30nm_d10_down',
-               3 : '40nm_d14_up',
-               4 : '40nm_d14_down',
-               7 : '56nm_d10_up',
-               8 : '56nm_d10_down',
-               5 : '60nm_d14_up',
-               6 : '60nm_d14_down',
-               9 : 'pause\\v19-4 c60 30nm d23 pause up'
+device_dict = {1 : 'c60 30nm d10',
+               2 : 'c60 40nm d14',
+               3 : 'c60 60nm d14',
+               9 : 'pause\\v19-4 c60 30nm d23 pause up',
+               7 : 'c60 56nm d10 up',
+               8 : 'c60 56nm d10 down'
                }
 
 
 
-fit_name = 'jv'
+fit_name = 'jv_up'
 
 
 
@@ -42,21 +39,19 @@ sim_folder_path = Path(sim_folder_directory) / device_dict[device]
 sim_subfolder = sim_folder_path / Path('sim')
 
 # Read the jv data  into a Pandas DataFrame
-jv_exp_df = pd.read_csv(sim_subfolder / 'jv_exp.dat',
+jv_exp_df = pd.read_csv(sim_subfolder / 'jv_up_exp.dat',
                 sep=" ", skiprows=0, header=None)
 
-jv_sim_df = pd.read_csv(sim_subfolder / 'jv_sim.dat',
+jv_sim_df = pd.read_csv(sim_subfolder / 'jv_up_sim.dat',
                 sep=" ", skiprows=0, header=None)
 
 
 # Read the slope data  into a Pandas DataFrame
-slope_exp_df = pd.read_csv(sim_subfolder / 'slope_exp.dat',
+slope_exp_df = pd.read_csv(sim_subfolder / 'jv_up_slope_exp.dat',
                 sep=" ", skiprows=0, header=None)
 
-slope_sim_df = pd.read_csv(sim_subfolder / 'slope_sim.dat',
+slope_sim_df = pd.read_csv(sim_subfolder / 'jv_up_slope_sim.dat',
                 sep=" ", skiprows=0, header=None)
-
-
 
 
 
@@ -79,7 +74,6 @@ fig, (axs0, axs1) = plt.subplots(2,
 
 #adjust plot margins
 fig.subplots_adjust(top=0.97, right=0.92, bottom=0.055, left=0.11, hspace=0)
-
 
 # Set title of window
 fig.canvas.manager.set_window_title(sim_folder_path.name) 
@@ -146,8 +140,13 @@ axs1.set_ylim(0, slope_sim_df[1].max()*1.1)
 
 
 
+
+
+
+
+
 '''
-Plot fitlog.csv and save it as pdf
+Plot fitlog.csv and plot as inset
 '''
 
 
@@ -156,10 +155,18 @@ df = pd.read_csv(sim_folder_path / 'fitlog.csv',
                  sep=' ')
 
 # Plot first two columns
-ins = axs0.inset_axes([0.1, 0.47, 0.45, 0.5])
+ins = axs1.inset_axes([0.5, 0.47, 0.45, 0.5])
 ins.plot(df.iloc[:,0], df.iloc[:,1], color='g', linestyle='-')
 ins.set_xlabel('Steps')
 ins.set_ylabel('Error')
+
+
+
+
+
+'''
+Save
+'''
 
 # Set title of plot
 plt.title(sim_folder_path.name)
@@ -170,14 +177,7 @@ resultsfolder_path = sim_folder_path.parent / (sim_folder_path.stem + ' results'
 # make new folder
 resultsfolder_path.mkdir(parents=True, exist_ok=True)
 
-
-
-
-
-
 # Save figure
-plt.savefig(resultsfolder_path / f'{device}_jv.pdf')
-
-  
+plt.savefig(resultsfolder_path / 'jv.pdf')
 
 print('Figure saved')

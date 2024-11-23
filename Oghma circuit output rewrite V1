@@ -7,14 +7,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import re
 
-model_version = 'Model V21-3' 
+model_version = 'Model V21-4' 
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder_directory = "/Users/alexiarango/Documents/Oghma/Circuit V19/V19-2/v19-2 c60 60nm d14 down/"
-sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-3"
+sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-4"
 
 # select device from dictionary
-device = 1
+device = 6
 
 device_dict = {1 : 'c60 30nm d10 up',
                2 : 'c60 30nm d10 down',

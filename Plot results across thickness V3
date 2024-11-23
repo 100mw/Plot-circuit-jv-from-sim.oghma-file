@@ -9,16 +9,16 @@ import re
 from collections import defaultdict
 from scipy.optimize import curve_fit
 
-model_version = 'Model V21-6' 
+model_version = 'Model V21-7' 
 
     
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder = "/Users/alexiarango/Library/CloudStorage/OneDrive-Personal/Documents/Oghma/Circuit/v21-4/"
-sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-6\\"
+sim_folder = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-8\\"
 
 # save as .pdf or .png?
-plot_file_type = '.pdf'
+plot_file_type = '.png'
 
 #plot settings
 black_background = True
@@ -34,7 +34,7 @@ Area = 0.00000121
 # Device parameters
 epsilon_C60 = 2.3
 Nt_Tt = 5e23
-Nt_Tsh = 7e23
+Nt_Tsh = 5e23
 
 # constants
 epsilon0 = 8.854e-12
@@ -61,7 +61,7 @@ point_color = {0: '#00f2ff',
 
 # set limits for d^-(2l+1) x values for fit line in Mark-Helfrich plots
 xfit_np_Tt = np.linspace(1e50, 1e63)
-xfit_np_Tsh = np.linspace(1e45, 1e55)
+xfit_np_Tsh = np.linspace(1e45, 1e55 )
 
 
 '''
