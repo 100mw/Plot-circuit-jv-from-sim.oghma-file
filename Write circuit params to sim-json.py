@@ -10,10 +10,10 @@ model_version = 'Model V21-9'
 
 # Type path to folder here (Mac/Windows/Unix compatible):
 #sim_folder_directory = "/Users/alexiarango/Library/CloudStorage/OneDrive-Personal/Documents/Oghma/Circuit/v21-4"
-sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\demo"
+sim_folder_directory = "C:\\Users\\acara\\OneDrive\\Documents\\Oghma\\Circuit\\v21-9"
 
 # select device from dictionary
-device = 3
+device = 4
 
 device_dict = {1 : '30nm_d10_up',
                2 : '30nm_d10_down',
