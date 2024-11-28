@@ -271,4 +271,4 @@ print('oghmacore.exe complete')
 print()
 
 # run "Oghma circuit ouput" to plot the device jv and save the parameters
-runplot = subprocess.Popen(['python', 'Oghma circuit output rewrite V2.py'])
+runplot = subprocess.Popen(['python', f'jvslope.py {device}'])
